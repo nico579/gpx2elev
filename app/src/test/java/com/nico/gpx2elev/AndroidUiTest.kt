@@ -50,6 +50,28 @@ class AndroidUiTest {
         assertEquals("fr", rule.activity.getSharedPreferences("language", 0).getString("choice", null))
     }
 
+    @Test fun cacheSizeConfirmationAndBusyGuard() {
+        var cleared = 0
+        rule.runOnUiThread {
+            rule.activity.setContent {
+                GpxScreen(AppState(), {}, {}, {}, {}, {}, CacheSize(1048576, 2097152), { cleared++ })
+            }
+        }
+        rule.onNodeWithText("Cache des altitudes · 3,0 Mio").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Vider le cache").performScrollTo().performClick()
+        rule.onNodeWithText("Annuler").performClick()
+        assertEquals(0, cleared)
+        rule.onNodeWithText("Vider le cache").performClick()
+        rule.onNode(hasText("Vider le cache") and hasAnyAncestor(isDialog())).performClick()
+        assertEquals(1, cleared)
+        rule.runOnUiThread {
+            rule.activity.setContent {
+                GpxScreen(AppState(busy = true), {}, {}, {}, {}, {}, CacheSize(1048576, 0), { cleared++ })
+            }
+        }
+        rule.onNodeWithText("Vider le cache").performScrollTo().assertIsNotEnabled()
+    }
+
     private fun reference(): Pair<PreparedTrack, DoubleArray> {
         assumeTrue("Banc d'essai personnel local", javaClass.getResource("/reference.gpx") != null && javaClass.getResource("/reference.csv") != null)
         val track = javaClass.getResourceAsStream("/reference.gpx")!!.use { GpxParser.parse(it) }

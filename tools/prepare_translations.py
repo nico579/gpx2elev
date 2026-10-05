@@ -168,6 +168,23 @@ PAIRS.update({
     "Latitude hors de la couverture SRTM90.": "Latitude outside SRTM90 coverage.",
 })
 
+PAIRS.update({
+    "Cache des altitudes": "Elevation cache",
+    "Profils": "Profiles",
+    "Tuiles": "Tiles",
+    "Mio": "MiB",
+    "Kio": "KiB",
+    "octets": "bytes",
+    "Vider le cache": "Clear cache",
+    "Vider le cache ?": "Clear cache?",
+    "Les altitudes devront être téléchargées à nouveau. Le GPX, les réglages et le résultat affiché sont conservés.":
+        "Elevations will need to be downloaded again. The GPX, settings and displayed result are kept.",
+    "Suppression du cache…": "Clearing cache…",
+    "Cache vidé.": "Cache cleared.",
+    "Impossible de vider complètement le cache.": "Unable to completely clear the cache.",
+    "Taille du cache indisponible.": "Cache size unavailable.",
+})
+
 if __name__ == '__main__':
     root = Path(__file__).resolve().parents[1]
     data = json.dumps(PAIRS, ensure_ascii=False, indent=2) + '\n'

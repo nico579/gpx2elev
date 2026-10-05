@@ -24,11 +24,12 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null && !importIntent(intent)) model.restore()
         setContent {
             val state by model.state.collectAsState()
+            val cacheSize by model.cacheSize.collectAsState()
             GpxScreen(state, onImport = { open.launch(arrayOf("*/*")) }, onCancel = model::cancel,
                 onRetry = model::retry, onExport = {
                     val name = state.result?.name?.substringBeforeLast('.') ?: "trace"
                     export.launch("${name}_denivele.csv")
-                }, onClearMessage = model::clearMessage)
+                }, onClearMessage = model::clearMessage, cacheSize = cacheSize, onClearCache = model::clearCache)
         }
     }
 

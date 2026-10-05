@@ -14,6 +14,21 @@ from . import __version__
 from .i18n import translate, number
 from .providers import Cancelled, RANKING, atomic_write
 from .service import calculate, export_profile, export_summary
+from .cache import cache_sizes, clear_cache
+
+
+class CacheWorker(QThread):
+    failed = Signal(str)
+
+    def __init__(self, directory, parent=None):
+        super().__init__(parent)
+        self.directory = directory
+
+    def run(self):
+        try:
+            clear_cache(self.directory)
+        except OSError:
+            self.failed.emit("Impossible de vider complètement le cache.")
 
 
 def data_directory():
@@ -73,7 +88,7 @@ class ProfileChart(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.result = None
-        self.setMinimumHeight(220)
+        self.setMinimumHeight(140)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setAccessibleName("Profil d'altitude lissé, distance en kilomètres et altitude en mètres")
 
@@ -189,6 +204,9 @@ class MainWindow(QMainWindow):
             self.language = "fr" if QLocale.system().language() == QLocale.Language.French else "en"
         self.result = None
         self.worker = None
+        self.cache_worker = None
+        self.cache_error = None
+        self.cache_bytes = {"profiles": 0, "tiles": 0}
         self.closing = False
         self.pending_path = None
         self.current_path = None
@@ -202,7 +220,7 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(main)
         layout = QVBoxLayout(main)
         layout.setContentsMargins(28, 22, 28, 20)
-        layout.setSpacing(14)
+        layout.setSpacing(12)
         header = QHBoxLayout()
         title_box = QVBoxLayout()
         title = LanguageLabel("gpx2elev")
@@ -278,6 +296,14 @@ class MainWindow(QMainWindow):
         self.cancel_button.clicked.connect(self.cancel)
         bottom.addWidget(self.cancel_button)
         layout.addLayout(bottom)
+        cache_row = QHBoxLayout()
+        self.cache_label = LanguageLabel(objectName="subtitle")
+        self.cache_label.setWordWrap(True)
+        cache_row.addWidget(self.cache_label, 1)
+        self.clear_cache_button = QPushButton("Vider le cache")
+        self.clear_cache_button.clicked.connect(self.confirm_clear_cache)
+        cache_row.addWidget(self.clear_cache_button)
+        layout.addLayout(cache_row)
         self.status = LanguageLabel("Prêt", objectName="subtitle")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
@@ -286,6 +312,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.hide()
         layout.addWidget(self.progress_bar)
         self.apply_language()
+        self.refresh_cache()
         if restore:
             QTimer.singleShot(0, self.restore)
 
@@ -315,6 +342,59 @@ class MainWindow(QMainWindow):
         if self.result is not None:
             self.show_result(self.result)
         self.chart.update()
+        self.show_cache_size()
+
+    def show_cache_size(self):
+        def size(value):
+            if value < 1024:
+                return self.number(value) + " " + self.tr("octets")
+            if value < 1048576:
+                return self.number(value / 1024, 1) + " " + self.tr("Kio")
+            return self.number(value / 1048576, 1) + " " + self.tr("Mio")
+        self.cache_label.setLiteralText(self.tr("Cache des altitudes") + " : " + size(sum(self.cache_bytes.values())) +
+            " · " + self.tr("Profils") + " " + size(self.cache_bytes['profiles']) + " / 64 " + self.tr("Mio") +
+            " · " + self.tr("Tuiles") + " " + size(self.cache_bytes['tiles']) + " / 512 " + self.tr("Mio"))
+
+    def refresh_cache(self):
+        try:
+            self.cache_bytes = cache_sizes(self.directory)
+        except OSError:
+            self.cache_label.setText("Taille du cache indisponible.")
+            return
+        self.show_cache_size()
+        self.clear_cache_button.setEnabled(self.worker is None and self.cache_worker is None and sum(self.cache_bytes.values()) > 0)
+
+    def confirm_clear_cache(self):
+        if self.worker is not None or self.cache_worker is not None:
+            return
+        answer = QMessageBox.question(self, self.tr("Vider le cache ?"),
+            self.tr("Les altitudes devront être téléchargées à nouveau. Le GPX, les réglages et le résultat affiché sont conservés."),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+        if answer == QMessageBox.StandardButton.Yes:
+            self.start_clear_cache()
+
+    def start_clear_cache(self):
+        if self.worker is not None or self.cache_worker is not None:
+            return
+        for control in (self.clear_cache_button, self.import_button, self.recalculate, self.models, self.online):
+            control.setEnabled(False)
+        self.status.setText("Suppression du cache…")
+        self.cache_error = None
+        self.cache_worker = CacheWorker(self.directory, self)
+        self.cache_worker.failed.connect(lambda message: setattr(self, 'cache_error', message))
+        self.cache_worker.finished.connect(self.cache_cleared)
+        self.cache_worker.start()
+
+    def cache_cleared(self):
+        worker, self.cache_worker = self.cache_worker, None
+        worker.deleteLater()
+        self.import_button.setEnabled(True)
+        self.recalculate.setEnabled(self.current_path is not None)
+        self.models.setEnabled(True)
+        self.online.setEnabled(True)
+        self.status.setText(self.cache_error or "Cache vidé.")
+        self.refresh_cache()
+        self.resume_pending()
 
     def metric_card(self, layout, column, title, initial, footer):
         frame = QFrame(objectName="card")
@@ -339,14 +419,14 @@ class MainWindow(QMainWindow):
         """Native file-open events can arrive during startup or another calculation."""
         if self.closing:
             return
-        if self.worker is not None:
+        if self.worker is not None or self.cache_worker is not None:
             self.pending_path = path
             self.cancel()
         else:
             self.open_path(path)
 
     def open_path(self, path, online_override=None):
-        if not path or self.worker is not None:
+        if not path or self.worker is not None or self.cache_worker is not None:
             return
         self.current_path = Path(path)
         self.filename.setLiteralText(self.current_path.name)
@@ -364,6 +444,7 @@ class MainWindow(QMainWindow):
         self.recalculate.setEnabled(False)
         self.models.setEnabled(False)
         self.online.setEnabled(False)
+        self.clear_cache_button.setEnabled(False)
         self.progress_bar.show()
         self.cancel_button.show()
         self.cancel_button.setEnabled(True)
@@ -434,6 +515,10 @@ class MainWindow(QMainWindow):
         self.online.setEnabled(True)
         self.cancel_button.hide()
         self.progress_bar.hide()
+        self.refresh_cache()
+        self.resume_pending()
+
+    def resume_pending(self):
         if self.closing:
             QTimer.singleShot(0, self.close)
         elif self.pending_path is not None:
@@ -483,7 +568,7 @@ class MainWindow(QMainWindow):
             "<p>Interface Qt/PySide6 sous LGPLv3. Les licences des dépendances sont incluses dans le bundle.</p>"))
 
     def dragEnterEvent(self, event):
-        if self.worker is None and event.mimeData().hasUrls() and any(u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() == ".gpx" for u in event.mimeData().urls()):
+        if self.worker is None and self.cache_worker is None and event.mimeData().hasUrls() and any(u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() == ".gpx" for u in event.mimeData().urls()):
             event.acceptProposedAction()
 
     def dropEvent(self, event):
@@ -494,7 +579,7 @@ class MainWindow(QMainWindow):
                 break
 
     def closeEvent(self, event):
-        if self.worker is not None:
+        if self.worker is not None or self.cache_worker is not None:
             self.closing = True
             self.cancel()
             event.ignore()

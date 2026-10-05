@@ -158,5 +158,18 @@
   "Archive SRTM vide.": "Empty SRTM archive.",
   "Tuile SRTM tronquée.": "Truncated SRTM tile.",
   "Tuile SRTM {0} absente.": "Missing SRTM tile {0}.",
-  "Latitude hors de la couverture SRTM90.": "Latitude outside SRTM90 coverage."
+  "Latitude hors de la couverture SRTM90.": "Latitude outside SRTM90 coverage.",
+  "Cache des altitudes": "Elevation cache",
+  "Profils": "Profiles",
+  "Tuiles": "Tiles",
+  "Mio": "MiB",
+  "Kio": "KiB",
+  "octets": "bytes",
+  "Vider le cache": "Clear cache",
+  "Vider le cache ?": "Clear cache?",
+  "Les altitudes devront être téléchargées à nouveau. Le GPX, les réglages et le résultat affiché sont conservés.": "Elevations will need to be downloaded again. The GPX, settings and displayed result are kept.",
+  "Suppression du cache…": "Clearing cache…",
+  "Cache vidé.": "Cache cleared.",
+  "Impossible de vider complètement le cache.": "Unable to completely clear the cache.",
+  "Taille du cache indisponible.": "Cache size unavailable."
 }

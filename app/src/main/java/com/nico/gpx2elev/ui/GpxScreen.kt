@@ -27,6 +27,7 @@ import com.nico.gpx2elev.Result
 import com.nico.gpx2elev.R
 import com.nico.gpx2elev.core.Profile
 import com.nico.gpx2elev.data.ElevationRepository
+import com.nico.gpx2elev.data.CacheSize
 import com.nico.gpx2elev.I18n
 import com.nico.gpx2elev.I18n.text as t
 import kotlin.math.*
@@ -40,9 +41,17 @@ private fun meters(value: Double) = String.format(I18n.locale, t("%,.0f"), value
 private fun distance(value: Double) = String.format(I18n.locale, t("%.2f"), value / 1000)
 
 @Composable
-fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRetry: () -> Unit, onExport: () -> Unit, onClearMessage: () -> Unit) {
+fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRetry: () -> Unit, onExport: () -> Unit, onClearMessage: () -> Unit,
+    cacheSize: CacheSize = CacheSize(), onClearCache: () -> Unit = {}) {
+    var confirmCache by remember { mutableStateOf(false) }
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light) {
         val colors = MaterialTheme.colorScheme
+        if (confirmCache) {
+            AlertDialog(onDismissRequest = { confirmCache = false }, title = { Text(t("Vider le cache ?")) },
+                text = { Text(t("Les altitudes devront être téléchargées à nouveau. Le GPX, les réglages et le résultat affiché sont conservés.")) },
+                confirmButton = { TextButton(onClick = { confirmCache = false; onClearCache() }, enabled = !state.busy) { Text(t("Vider le cache")) } },
+                dismissButton = { TextButton(onClick = { confirmCache = false }) { Text(t("Annuler")) } })
+        }
         Surface(Modifier.fillMaxSize(), color = colors.background) {
             Scaffold(containerColor = colors.background, topBar = {
                 Row(Modifier.fillMaxWidth().background(Color(0xFF112B25)).statusBarsPadding().padding(horizontal = 22.dp, vertical = 18.dp),
@@ -65,6 +74,7 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                 Surface(shadowElevation = 8.dp) {
                     Column(Modifier.navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
                         Button(onClick = if (state.busy) onCancel else onImport,
+                            enabled = !state.clearingCache,
                             modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(16.dp)) {
                             Icon(if (state.busy) Icons.Default.Close else Icons.Default.Add, null)
                             Spacer(Modifier.width(10.dp))
@@ -89,6 +99,22 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                         }
                     }
                     ProtocolCard()
+                    Card(shape = RoundedCornerShape(20.dp)) {
+                        Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            fun size(bytes: Long) = when {
+                                bytes < 1024 -> "$bytes " + t("octets")
+                                bytes < 1048576 -> String.format(I18n.locale, "%.1f", bytes / 1024.0) + " " + t("Kio")
+                                else -> String.format(I18n.locale, "%.1f", bytes / 1048576.0) + " " + t("Mio")
+                            }
+                            Text(t("Cache des altitudes") + " · " + size(cacheSize.total), fontWeight = FontWeight.SemiBold)
+                            Text(t("Profils") + " : " + size(cacheSize.profiles) + " / 64 " + t("Mio") + " · " +
+                                t("Tuiles") + " : " + size(cacheSize.tiles) + " / 512 " + t("Mio"), fontSize = 12.sp)
+                            OutlinedButton(onClick = { confirmCache = true }, enabled = !state.busy && cacheSize.total > 0) {
+                                Text(t("Vider le cache"))
+                            }
+                            state.cacheMessage?.let { Text(t(it), fontSize = 12.sp) }
+                        }
+                    }
                     if (state.result == null && !state.busy) {
                         Text(t("Le premier calcul utilise Internet. Les données téléchargées restent disponibles pour cette trace hors connexion."),
                             color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 19.sp)

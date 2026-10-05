@@ -1,26 +1,13 @@
-# gpx2elev — EN / FR
+# gpx2elev 0.3.2 — Cache / cache management
 
-**[English documentation](https://github.com/nico579/gpx2elev/blob/main/README.en.md) | [Documentation française](https://github.com/nico579/gpx2elev/blob/main/README.md)**
+**FR** : affichage de la taille totale du cache et du détail profils/tuiles ; bouton **Vider le cache** avec confirmation sur Android et bureau. Suppression en tâche de fond, désactivée pendant un calcul. GPX, réglages, exports et résultat affiché conservés. Les altitudes devront être téléchargées à nouveau. Plafonds existants : 64 Mio pour les profils, 512 Mio pour les tuiles, appliqués après les calculs.
 
-**Version commune 0.3.1 : APK Android et quatre bundles Python construits et vérifiés sur GitHub Actions.** Nouvel identifiant Android : `com.nico.gpx2elev`. Android l'installe comme une nouvelle application ; les données de 0.1/0.2 ne sont pas migrées automatiquement.
+**EN**: total cache size and profile/tile breakdown; **Clear cache** button with confirmation on Android and desktop. Background deletion, disabled during calculations. The GPX, settings, exports and displayed result are kept. Elevations will need to be downloaded again. Existing limits: 64 MiB for profiles, 512 MiB for tiles, applied after calculations.
 
-**Shared version 0.3.1: Android APK and all four Python bundles built and verified on GitHub Actions.** New Android identifier: `com.nico.gpx2elev`. Android installs it as a new application; local data from 0.1/0.2 are not automatically migrated.
+APK Android et quatre bundles Python construits et validés sur GitHub Actions, tous en **0.3.2**. Android conserve l’identifiant et la signature de 0.3.1 : mise à jour directe. Protocole numérique inchangé : **pas 5 m, σ = 20 m, hystérésis 2 m**. Rapports de validation et SHA-256 joints.
 
-Sélecteur **FR / EN** sur Android et sur le bureau : choix mémorisé, changement immédiat sans recalcul, écrans et messages traduits, nombres adaptés à la langue. README anglais et français reliés, inclus dans les bundles. Protocole et résultats numériques inchangés.
+Android APK and four standalone Python bundles built and verified by GitHub Actions, all at **0.3.2**. Same Android identifier and signing key as 0.3.1, allowing direct updates. Unchanged calculation protocol: **5 m spacing, σ = 20 m, 2 m hysteresis**. Verification reports and SHA-256 checksums included.
 
-**FR / EN** selector on Android and desktop: saved choice, immediate switching without recalculation, translated screens and messages, language-specific numbers. Linked English and French README files are included in the bundles. Unchanged protocol and numerical results.
+Windows x64, Linux x64, macOS Intel et Apple Silicon. Extraire le bundle avant de lancer l’application. Les applications macOS ne sont pas notarisées. Le D+ reste une estimation dépendant des coordonnées et du filtrage.
 
-- **Android 8.0 et supérieur** : `gpx2elev-0.3.1.apk`, APK signé de la version Android 0.3.1, avec ouverture et partage des GPX vers gpx2elev.
-- **Windows x64** : ZIP à extraire, puis ouvrir `gpx2elev.exe` dans son dossier.
-- **Linux x64** : TAR.GZ à extraire, puis lancer `gpx2elev` ; construit sur Ubuntu 22.04.
-- **macOS Intel et Apple Silicon** : deux ZIP contenant `gpx2elev.app`. Les applications ne sont pas notarisées par Apple ; la première ouverture peut demander « Ouvrir quand même » dans les réglages de confidentialité et sécurité.
-
-Ouverture GPX par sélection, glisser-déposer et chemin de fichier. D+, D−, distance et profil d'altitude ; comparaison avec le GPX brut et filtré ; exports des résultats et du profil en CSV ; calculs en tâche de fond avec annulation et cache hors connexion.
-
-Même protocole que l'application Android : **pas 5 m, gaussienne σ = 20 m, hystérésis 2 m**. Repli : **IGN LiDAR HD → Mapterhorn → FABDEM → Copernicus → SRTM90**. Un seul modèle couvre chaque trace.
-
-Les builds natifs exécutent les tests du moteur, des lecteurs et de l'interface, puis un contrôle du véritable exécutable incluant Qt, GDAL/GeoTIFF et WebP. Les rapports et SHA-256 sont joints. Le contrôle local sur la trace personnelle du 4 octobre retrouve **735,128566 m / 735,149565 m** et toutes les altitudes lissées de la référence Android/Python ; aucune trace personnelle n'est publiée.
-
-Le D+ reste une estimation dépendant des coordonnées et du filtrage. L'APK conserve la signature de la version 0.1 ; son SHA-256 et son rapport `verification-android.json` sont joints dans cette même release. L'APK et les quatre bundles portent tous la version 0.3.1.
-
-Elevation gain is an estimate affected by coordinates and filtering. Android uses the same signing key as 0.1. The APK and standalone desktop bundles all use version 0.3.1. SHA-256 checksums and verification reports are included. macOS bundles are not notarized. The first calculation requires Internet access; complete cached profiles work offline.
+Windows x64, Linux x64, Intel and Apple Silicon macOS. Extract the bundle before launching. macOS apps are not notarized. Elevation gain remains an estimate affected by coordinates and filtering.

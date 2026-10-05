@@ -13,13 +13,15 @@ import com.nico.gpx2elev.data.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.util.Locale
 
 data class Result(val name: String, val prepared: PreparedTrack, val computed: Computed, val series: ElevationSeries, val date: Long)
-data class AppState(val busy: Boolean = false, val progress: Progress? = null, val result: Result? = null, val error: String? = null, val fileName: String? = null)
+data class AppState(val busy: Boolean = false, val progress: Progress? = null, val result: Result? = null, val error: String? = null, val fileName: String? = null, val clearingCache: Boolean = false, val cacheMessage: String? = null)
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val mutableState = MutableStateFlow(AppState())
@@ -27,9 +29,37 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private var job: Job? = null
     private var transport: HttpTransport? = null
     private var retryUri: Uri? = null
+    private var pendingUri: Uri? = null
     private val base = File(application.filesDir, "elevation").apply { mkdirs() }
     private val lastTrack = File(base, "last.gpx")
     private val prefs = application.getSharedPreferences("trace", Context.MODE_PRIVATE)
+    private val storageLock = Mutex()
+    private val mutableCacheSize = MutableStateFlow(CacheSize())
+    val cacheSize = mutableCacheSize.asStateFlow()
+
+    init {
+        viewModelScope.launch(Dispatchers.IO) {
+            storageLock.withLock { mutableCacheSize.value = CacheStorage.size(base) }
+        }
+    }
+
+    fun clearCache() {
+        if (state.value.busy) return
+        mutableState.value = state.value.copy(busy = true, clearingCache = true, error = null,
+            progress = Progress("Suppression du cache…", 0, 0))
+        viewModelScope.launch {
+            var message = "Cache vidé."
+            try {
+                withContext(Dispatchers.IO) { storageLock.withLock { CacheStorage.clear(base) } }
+            } catch (e: Exception) {
+                message = "Impossible de vider complètement le cache."
+            } finally {
+                withContext(Dispatchers.IO) { storageLock.withLock { mutableCacheSize.value = CacheStorage.size(base) } }
+                mutableState.value = state.value.copy(busy = false, clearingCache = false, progress = null, cacheMessage = message)
+                pendingUri?.let { pendingUri = null; import(it) }
+            }
+        }
+    }
 
     fun restore() {
         if (mutableState.value.result == null && !mutableState.value.busy && lastTrack.exists()) {
@@ -38,6 +68,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun import(uri: Uri) {
+        if (state.value.clearingCache) { pendingUri = uri; return }
         val resolver = getApplication<Application>().contentResolver
         val name = try {
             resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
@@ -53,6 +84,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun cancel() {
+        if (state.value.clearingCache) return
         transport?.cancel()
         job?.cancel()
         job = null
@@ -60,6 +92,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun analyze(name: String, uri: Uri?) {
+        if (state.value.clearingCache) return
         cancel()
         retryUri = uri
         val http = HttpTransport()
@@ -67,7 +100,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         mutableState.value = AppState(busy = true, progress = Progress("Lecture du GPX", 0, 0), fileName = name)
         job = viewModelScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
+                val result = withContext(Dispatchers.IO) { storageLock.withLock {
                     val app = getApplication<Application>()
                     if (uri != null) {
                         val temporary = File.createTempFile("import-", ".gpx.part", base)
@@ -112,11 +145,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     pruneCache(File(base, "profiles"), 64L * 1024 * 1024)
                     pruneCache(File(base, "tiles"), 512L * 1024 * 1024)
                     Result(name, prepared, computed, series, System.currentTimeMillis())
-                }
+                } }
                 mutableState.value = AppState(result = result, fileName = name)
             } catch (_: CancellationException) { }
             catch (exception: Exception) {
                 if (isActive) mutableState.value = AppState(error = exception.message ?: "Le calcul a échoué.", fileName = name)
+            }
+            finally {
+                withContext(NonCancellable + Dispatchers.IO) {
+                    storageLock.withLock {
+                        pruneCache(File(base, "profiles"), 64L * 1024 * 1024)
+                        pruneCache(File(base, "tiles"), 512L * 1024 * 1024)
+                        mutableCacheSize.value = CacheStorage.size(base)
+                    }
+                }
             }
         }
     }
@@ -136,7 +178,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun clearMessage() { mutableState.value = mutableState.value.copy(error = null) }
+    fun clearMessage() { mutableState.value = mutableState.value.copy(error = null, cacheMessage = null) }
 
     private fun pruneCache(directory: File, maximum: Long) {
         val files = directory.listFiles()?.filter { it.isFile && !it.name.endsWith(".part") }?.sortedBy { it.lastModified() } ?: return

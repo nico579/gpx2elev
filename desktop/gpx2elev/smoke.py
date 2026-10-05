@@ -90,9 +90,21 @@ def run_smoke(report_path, fixtures=None):
             image.load()
             if image.size != (512, 512):
                 raise AssertionError("WebP illisible.")
+        if sum(window.cache_bytes.values()) <= 0 or not window.clear_cache_button.isEnabled():
+            raise AssertionError("Taille du cache absente de l'interface.")
+        window.start_clear_cache()
+        deadline = time.monotonic() + 10
+        while window.cache_worker is not None and time.monotonic() < deadline:
+            app.processEvents()
+            time.sleep(.01)
+        if window.cache_worker is not None:
+            window.cache_worker.wait(10_000)
+            raise AssertionError("La suppression du cache n'a pas terminé.")
+        if sum(window.cache_bytes.values()) != 0 or window.result is not result or not (root / 'last.gpx').exists():
+            raise AssertionError("Suppression du cache incorrecte ou trace perdue.")
         report = {"status": "OK", "frozen": bool(getattr(sys, "frozen", False)),
                   "platform": sys.platform, "checks": ["ouverture GPX par glisser-déposer", "calcul hors connexion",
-                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "GeoTIFF GDAL", "WebP Terrarium"],
+                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
                   "resultat_synthetique": result.summary()}
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()
