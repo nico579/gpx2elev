@@ -60,7 +60,7 @@ def main(argv=None):
     from .ui import DesktopApplication, MainWindow
     from PySide6.QtCore import QTimer
     app = DesktopApplication(sys.argv if argv is None else ["gpx2elev"] + argv)
-    window = MainWindow(args.data_dir, restore=not args.gpx)
+    window = MainWindow(args.data_dir, restore=not (args.gpx or app.pending_path))
     app.window = window
     if args.offline:
         window.online.setChecked(False)

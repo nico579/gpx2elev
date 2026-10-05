@@ -24,7 +24,7 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="gpx2elev", debug=Fals
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="gpx2elev")
 if sys.platform == "darwin":
     app = BUNDLE(coll, name="gpx2elev.app", icon=str(assets / "icon.icns"),
-                 bundle_identifier="com.nico.gpx2elev", version="0.2.0",
+                 bundle_identifier="com.nico.gpx2elev", version="0.2.1",
                  info_plist={"NSHighResolutionCapable": True,
                              "LSMinimumSystemVersion": "13.0",
                              "CFBundleDisplayName": "gpx2elev",

@@ -153,6 +153,7 @@ class MainWindow(QMainWindow):
         self.result = None
         self.worker = None
         self.closing = False
+        self.pending_path = None
         self.current_path = None
         self.setWindowTitle(f"gpx2elev · {__version__}")
         self.setWindowIcon(app_icon())
@@ -261,6 +262,16 @@ class MainWindow(QMainWindow):
         if filename:
             self.open_path(filename)
 
+    def receive_path(self, path):
+        """Native file-open events can arrive during startup or another calculation."""
+        if self.closing:
+            return
+        if self.worker is not None:
+            self.pending_path = path
+            self.cancel()
+        else:
+            self.open_path(path)
+
     def open_path(self, path, online_override=None):
         if not path or self.worker is not None:
             return
@@ -352,6 +363,9 @@ class MainWindow(QMainWindow):
         self.progress_bar.hide()
         if self.closing:
             QTimer.singleShot(0, self.close)
+        elif self.pending_path is not None:
+            path, self.pending_path = self.pending_path, None
+            QTimer.singleShot(0, lambda: self.open_path(path))
 
     def cancel(self):
         if self.worker is not None:
@@ -439,6 +453,6 @@ class DesktopApplication(QApplication):
                 if self.window is None:
                     self.pending_path = path
                 else:
-                    self.window.open_path(path)
+                    self.window.receive_path(path)
             return True
         return super().event(event)

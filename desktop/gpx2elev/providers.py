@@ -129,7 +129,7 @@ class Http:
     def __init__(self, cancel=None):
         self.cancel = cancel if cancel is not None else threading.Event()
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "gpx2elev/0.2.0", "Accept-Encoding": "identity"})
+        self.session.headers.update({"User-Agent": "gpx2elev/0.2.1", "Accept-Encoding": "identity"})
 
     def check(self):
         if self.cancel.is_set():
