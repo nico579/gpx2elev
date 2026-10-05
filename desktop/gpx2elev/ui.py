@@ -4,13 +4,14 @@ from pathlib import Path
 import threading
 
 import numpy as np
-from PySide6.QtCore import QEvent, QPointF, QRectF, QStandardPaths, Qt, QThread, QTimer, Signal
+from PySide6.QtCore import QEvent, QLocale, QPointF, QRectF, QStandardPaths, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QIcon, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, QFrame,
     QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
     QPushButton, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import __version__
+from .i18n import translate, number
 from .providers import Cancelled, RANKING, atomic_write
 from .service import calculate, export_profile, export_summary
 
@@ -19,8 +20,35 @@ def data_directory():
     return Path(QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation))
 
 
-def french(value, decimals=0):
-    return f"{value:,.{decimals}f}".replace(",", "\u202f").replace(".", ",")
+class LanguageLabel(QLabel):
+    def __init__(self, text="", *args, **kwargs):
+        super().__init__(text, *args, **kwargs)
+        self.original = text
+
+    def setText(self, text):
+        self.original = text
+        self.retranslate()
+
+    def retranslate(self):
+        window = self.window()
+        super().setText(window.tr(self.original) if isinstance(window, MainWindow)
+                        and self.property("literal") is not True else self.original)
+
+    def setLiteralText(self, text):
+        self.setProperty("literal", True)
+        self.setText(text)
+
+
+class LanguageBrowser(QTextBrowser):
+    original = ""
+
+    def setPlainText(self, text):
+        self.original = text
+        self.retranslate()
+
+    def retranslate(self):
+        window = self.window()
+        super().setPlainText(window.tr(self.original) if isinstance(window, MainWindow) else self.original)
 
 
 def app_icon():
@@ -49,13 +77,16 @@ class ProfileChart(QWidget):
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.setAccessibleName("Profil d'altitude lissé, distance en kilomètres et altitude en mètres")
 
+    def number(self, value, decimals=0):
+        return number(value, decimals, self.window().language)
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         painter.fillRect(self.rect(), QColor("white"))
         if self.result is None:
             painter.setPen(QColor("#6b7c88"))
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "Le profil d’altitude apparaîtra ici")
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.window().tr("Le profil d’altitude apparaîtra ici"))
             return
         profiles = self.result.computed.profiles
         length = max(self.result.prepared.length, 1)
@@ -71,11 +102,11 @@ class ProfileChart(QWidget):
             painter.setPen(QPen(QColor("#e4ece9"), 1))
             painter.drawLine(QPointF(chart.left(), y), QPointF(chart.right(), y))
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QRectF(0, y - 9, 56, 18), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, french(high - (high - low) * i / 4) + " m")
+            painter.drawText(QRectF(0, y - 9, 56, 18), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.number(high - (high - low) * i / 4) + " m")
         for i in range(5):
             x = chart.left() + chart.width() * i / 4
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QRectF(x - 32, chart.bottom() + 9, 64, 20), Qt.AlignmentFlag.AlignCenter, french(length * i / 4000, 1) + " km")
+            painter.drawText(QRectF(x - 32, chart.bottom() + 9, 64, 20), Qt.AlignmentFlag.AlignCenter, self.number(length * i / 4000, 1) + " km")
         for profile in profiles:
             # Bound drawing work while retaining each bucket's minimum and maximum.
             n = len(profile.distance)
@@ -150,6 +181,12 @@ class MainWindow(QMainWindow):
     def __init__(self, directory=None, restore=True):
         super().__init__()
         self.directory = Path(directory) if directory is not None else data_directory()
+        try:
+            self.language = json.loads((self.directory / "settings.json").read_text(encoding="utf-8")).get("language")
+        except (OSError, ValueError):
+            self.language = None
+        if self.language not in ("fr", "en"):
+            self.language = "fr" if QLocale.system().language() == QLocale.Language.French else "en"
         self.result = None
         self.worker = None
         self.closing = False
@@ -168,15 +205,23 @@ class MainWindow(QMainWindow):
         layout.setSpacing(14)
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("gpx2elev")
+        title = LanguageLabel("gpx2elev")
         title.setFont(QFont(self.font().family(), 26, QFont.Weight.Bold))
         title_box.addWidget(title)
-        title_box.addWidget(QLabel("Le dénivelé de votre parcours, à partir du terrain", objectName="subtitle"))
+        title_box.addWidget(LanguageLabel("Le dénivelé de votre parcours, à partir du terrain", objectName="subtitle"))
         header.addLayout(title_box)
         header.addStretch()
         about = QPushButton("Méthode et sources")
         about.clicked.connect(self.about)
         header.addWidget(about)
+        self.language_picker = QComboBox()
+        self.language_picker.addItem("FR", "fr")
+        self.language_picker.addItem("EN", "en")
+        self.language_picker.setStyleSheet("QComboBox { min-width: 48px; }")
+        self.language_picker.setCurrentIndex(0 if self.language == "fr" else 1)
+        self.language_picker.setAccessibleName("Language / Langue")
+        self.language_picker.currentIndexChanged.connect(self.select_language)
+        header.addWidget(self.language_picker)
         layout.addLayout(header)
         controls = QHBoxLayout()
         self.import_button = QPushButton("Choisir un GPX", objectName="primary")
@@ -197,10 +242,10 @@ class MainWindow(QMainWindow):
         self.online.setChecked(True)
         controls.addWidget(self.online)
         layout.addLayout(controls)
-        self.filename = QLabel("Déposez un fichier GPX dans cette fenêtre, ou choisissez-le ci-dessus.")
+        self.filename = LanguageLabel("Déposez un fichier GPX dans cette fenêtre, ou choisissez-le ci-dessus.")
         self.filename.setWordWrap(True)
         layout.addWidget(self.filename)
-        self.source_label = QLabel("Source : sélection automatique selon la couverture", objectName="subtitle")
+        self.source_label = LanguageLabel("Source : sélection automatique selon la couverture", objectName="subtitle")
         layout.addWidget(self.source_label)
         cards = QGridLayout()
         self.up = self.metric_card(cards, 0, "DÉNIVELÉ POSITIF ESTIMÉ", "— m", "Montée")
@@ -209,12 +254,12 @@ class MainWindow(QMainWindow):
         layout.addLayout(cards)
         self.chart = ProfileChart()
         layout.addWidget(self.chart, 1)
-        self.range_label = QLabel("Profil lissé · pas 5 m · gaussienne σ = 20 m · hystérésis 2 m", objectName="subtitle")
+        self.range_label = LanguageLabel("Profil lissé · pas 5 m · gaussienne σ = 20 m · hystérésis 2 m", objectName="subtitle")
         layout.addWidget(self.range_label)
-        self.comparison = QLabel("Altitudes GPX : les sommes brutes et filtrées seront affichées après le calcul.")
+        self.comparison = LanguageLabel("Altitudes GPX : les sommes brutes et filtrées seront affichées après le calcul.")
         self.comparison.setWordWrap(True)
         layout.addWidget(self.comparison)
-        self.details = QTextBrowser()
+        self.details = LanguageBrowser()
         self.details.setMaximumHeight(86)
         self.details.hide()
         layout.addWidget(self.details)
@@ -233,32 +278,60 @@ class MainWindow(QMainWindow):
         self.cancel_button.clicked.connect(self.cancel)
         bottom.addWidget(self.cancel_button)
         layout.addLayout(bottom)
-        self.status = QLabel("Prêt", objectName="subtitle")
+        self.status = LanguageLabel("Prêt", objectName="subtitle")
         self.status.setWordWrap(True)
         layout.addWidget(self.status)
         self.progress_bar = QProgressBar()
         self.progress_bar.setTextVisible(False)
         self.progress_bar.hide()
         layout.addWidget(self.progress_bar)
+        self.apply_language()
         if restore:
             QTimer.singleShot(0, self.restore)
+
+    def tr(self, text):
+        return translate(text, self.language)
+
+    def number(self, value, decimals=0):
+        return number(value, decimals, self.language)
+
+    def select_language(self):
+        self.language = self.language_picker.currentData()
+        self.apply_language()
+        atomic_write(self.directory / "settings.json", json.dumps({"language": self.language}).encode())
+
+    def apply_language(self):
+        for widget in self.findChildren(LanguageLabel) + self.findChildren(LanguageBrowser):
+            widget.retranslate()
+        for widget in self.findChildren(QPushButton) + self.findChildren(QCheckBox):
+            original = widget.property("original_text")
+            if original is None:
+                original = widget.text()
+                widget.setProperty("original_text", original)
+            widget.setText(self.tr(original))
+        self.models.setItemText(0, self.tr("Modèle automatique"))
+        self.models.setAccessibleName(self.tr("Modèle d'altitude"))
+        self.chart.setAccessibleName(self.tr("Profil d'altitude lissé, distance en kilomètres et altitude en mètres"))
+        if self.result is not None:
+            self.show_result(self.result)
+        self.chart.update()
 
     def metric_card(self, layout, column, title, initial, footer):
         frame = QFrame(objectName="card")
         box = QVBoxLayout(frame)
         box.setContentsMargins(18, 14, 18, 14)
-        label = QLabel(title, objectName="subtitle")
+        label = LanguageLabel(title, objectName="subtitle")
         label.setFont(QFont(self.font().family(), 9))
         box.addWidget(label)
-        value = QLabel(initial)
+        value = LanguageLabel(initial)
         value.setFont(QFont(self.font().family(), 28, QFont.Weight.Bold))
         box.addWidget(value)
-        box.addWidget(QLabel(footer, objectName="subtitle"))
+        box.addWidget(LanguageLabel(footer, objectName="subtitle"))
         layout.addWidget(frame, 0, column)
         return value
 
     def choose(self):
-        filename, _ = QFileDialog.getOpenFileName(self, "Choisir une trace", "", "Traces GPX (*.gpx *.GPX);;Tous les fichiers (*)")
+        filename, _ = QFileDialog.getOpenFileName(self, self.tr("Choisir une trace"), "", self.tr("Traces GPX (*.gpx *.GPX);;Tous les fichiers (*)"))
         if filename:
             self.open_path(filename)
 
@@ -276,7 +349,7 @@ class MainWindow(QMainWindow):
         if not path or self.worker is not None:
             return
         self.current_path = Path(path)
-        self.filename.setText(self.current_path.name)
+        self.filename.setLiteralText(self.current_path.name)
         self.result = None
         self.chart.result = None
         self.chart.update()
@@ -317,24 +390,24 @@ class MainWindow(QMainWindow):
             except (OSError, ValueError, KeyError):
                 pass
         self.result = result
-        self.filename.setText(result.filename)
-        self.up.setText("+" + french(result.computed.gain.up) + " m")
-        self.down.setText("−" + french(result.computed.gain.down) + " m")
-        self.length.setText(french(result.prepared.length / 1000, 2) + " km")
+        self.filename.setLiteralText(result.filename)
+        self.up.setText("+" + self.number(result.computed.gain.up) + " m")
+        self.down.setText("−" + self.number(result.computed.gain.down) + " m")
+        self.length.setText(self.number(result.prepared.length / 1000, 2) + " km")
         cache = " · profil en cache" if result.series.from_cache else ""
         self.source_label.setText("Source : " + result.series.source.label + cache)
         self.chart.result = result
         self.chart.update()
-        self.range_label.setText(f"Altitude {french(result.computed.minimum)}–{french(result.computed.maximum)} m · pas 5 m · σ = 20 m · hystérésis 2 m")
+        self.range_label.setText(f"Altitude {self.number(result.computed.minimum)}–{self.number(result.computed.maximum)} m · pas 5 m · σ = 20 m · hystérésis 2 m")
         def gain_text(gain):
-            return f"D+ {french(gain.up)} m / D− {french(gain.down)} m" if gain is not None else "altitudes absentes ou incomplètes"
+            return f"D+ {self.number(gain.up)} m / D− {self.number(gain.down)} m" if gain is not None else "altitudes absentes ou incomplètes"
         self.comparison.setText("Comparaison GPX\nSomme brute des variations : " + gain_text(result.computed.gpx_raw) + "\nGPX rééchantillonné et filtré : " + gain_text(result.computed.gpx_filtered))
         if result.series.fallbacks:
             self.details.setPlainText("Repli entre modèles :\n" + "\n".join(f"{s.label} : {r}" for s, r in result.series.fallbacks))
             self.details.show()
         self.export_button.setEnabled(True)
         self.profile_button.setEnabled(True)
-        self.status.setText(f"Calcul terminé · {french(result.prepared.track.point_count)} points GPX · {french(result.prepared.sample_count)} positions à 5 m")
+        self.status.setText(f"Calcul terminé · {self.number(result.prepared.track.point_count)} points GPX · {self.number(result.prepared.sample_count)} positions à 5 m")
         # Preserve one validated input locally, so moving the original does not break restoration.
         if self.current_path is not None:
             try:
@@ -388,16 +461,16 @@ class MainWindow(QMainWindow):
         if self.result is None:
             return
         name = Path(self.result.filename).stem + "_" + suffix + ".csv"
-        path, _ = QFileDialog.getSaveFileName(self, "Exporter en CSV", name, "Fichiers CSV (*.csv)")
+        path, _ = QFileDialog.getSaveFileName(self, self.tr("Exporter en CSV"), name, self.tr("Fichiers CSV (*.csv)"))
         if path:
             try:
                 function(self.result, path)
                 self.status.setText("Export enregistré : " + Path(path).name)
             except OSError as exc:
-                QMessageBox.warning(self, "Export impossible", str(exc))
+                QMessageBox.warning(self, self.tr("Export impossible"), self.tr(str(exc)))
 
     def about(self):
-        QMessageBox.about(self, "Méthode et sources", "<h3>gpx2elev " + __version__ + "</h3>"
+        QMessageBox.about(self, self.tr("Méthode et sources"), self.tr("<h3>gpx2elev " + __version__ + "</h3>"
             "<p>D+ estimé : rééchantillonnage à 5 m, gaussienne spatiale σ = 20 m (rayon 80 m), hystérésis de 2 m. "
             "Les segments et leurs extrémités sont conservés. Les coordonnées XY ne sont pas corrigées.</p>"
             "<p>Ordre automatique : IGN LiDAR HD → Mapterhorn → FABDEM → Copernicus GLO-30 → SRTM90. "
@@ -407,7 +480,7 @@ class MainWindow(QMainWindow):
             "<p>IGN : Licence Ouverte. <a href='https://mapterhorn.com/attribution/'>Mapterhorn : producteurs</a>. "
             "<a href='https://research-information.bris.ac.uk/en/datasets/fabdem-v1-2/'>FABDEM 1.2 : CC BY-NC-SA 4.0</a>. "
             "<a href='https://registry.opendata.aws/copernicus-dem/'>Copernicus : licence DEM</a>. SRTM : NASA/USGS, miroir Kurviger.</p>"
-            "<p>Interface Qt/PySide6 sous LGPLv3. Les licences des dépendances sont incluses dans le bundle.</p>")
+            "<p>Interface Qt/PySide6 sous LGPLv3. Les licences des dépendances sont incluses dans le bundle.</p>"))
 
     def dragEnterEvent(self, event):
         if self.worker is None and event.mimeData().hasUrls() and any(u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() == ".gpx" for u in event.mimeData().urls()):

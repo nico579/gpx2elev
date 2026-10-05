@@ -1,16 +1,20 @@
 # gpx2elev pour Windows, Linux et macOS
 
+**[Français](README.md) | [English](README.en.md)**
+
 Application Python de bureau, avec des bundles autonomes incluant Python, Qt et les lecteurs de modèles. **Aucune installation de Python n'est nécessaire pour les bundles.**
 
-[Télécharger la release](https://github.com/nico579/gpx2elev/releases/tag/v0.2.2).
+[Télécharger la release](https://github.com/nico579/gpx2elev/releases/tag/v0.2.3).
 
-La même release contient l'APK Android signé `gpx2elev-0.1.apk`, son rapport `verification-android.json` et sa somme SHA-256. La version Android reste 0.1 ; les bundles Python portent la version 0.2.2.
+La même release contient l'APK Android signé `gpx2elev-0.2.apk`, son rapport `verification-android.json` et sa somme SHA-256. La version Android est 0.2 ; les bundles Python portent la version 0.2.3.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.2.2-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.2.2-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.2.3-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.2.3-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
+
+Le sélecteur **FR / EN** de l’en-tête change la langue immédiatement et mémorise le choix. Les nombres affichés suivent la langue ; les CSV gardent leur schéma et leurs valeurs.
 
 Choisir un GPX, ou le déposer dans la fenêtre. L'ouverture avec l'application accepte également un chemin GPX en argument ; macOS accepte les événements d'ouverture du Finder. Sur Windows, **Ouvrir avec → Choisir une autre application** permet de sélectionner l'exécutable. Aucune association de fichier n'est modifiée automatiquement.
 

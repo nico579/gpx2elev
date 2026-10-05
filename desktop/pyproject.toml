@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gpx2elev"
-version = "0.2.2"
+version = "0.2.3"
 description = "Dénivelé GPX, MNT et protocole spatial 5 m / 20 m / 2 m"
 requires-python = ">=3.12,<3.13"
 dynamic = ["dependencies"]

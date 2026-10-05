@@ -27,7 +27,8 @@ import com.nico.gpxdenivele.Result
 import com.nico.gpxdenivele.R
 import com.nico.gpxdenivele.core.Profile
 import com.nico.gpxdenivele.data.ElevationRepository
-import java.util.Locale
+import com.nico.gpxdenivele.I18n
+import com.nico.gpxdenivele.I18n.text as t
 import kotlin.math.*
 
 private val Green = Color(0xFF237A56)
@@ -35,9 +36,8 @@ private val Light = lightColorScheme(primary = Green, background = Color(0xFFF4F
     surfaceVariant = Color(0xFFEAF0E7), onSurfaceVariant = Color(0xFF4B5D51), primaryContainer = Color(0xFFE0F1DC), onPrimaryContainer = Color(0xFF153D2B))
 private val Dark = darkColorScheme(primary = Color(0xFF9FDAAE), onPrimary = Color(0xFF153D2B), background = Color(0xFF101B17), surface = Color(0xFF1B2922),
     surfaceVariant = Color(0xFF293B30), onSurfaceVariant = Color(0xFFB8CABB), primaryContainer = Color(0xFF244D36), onPrimaryContainer = Color(0xFFC0EDCA))
-private val French = Locale.FRANCE
-private fun meters(value: Double) = String.format(French, "%,.0f", value)
-private fun distance(value: Double) = String.format(French, "%.2f", value / 1000)
+private fun meters(value: Double) = String.format(I18n.locale, t("%,.0f"), value)
+private fun distance(value: Double) = String.format(I18n.locale, t("%.2f"), value / 1000)
 
 @Composable
 fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRetry: () -> Unit, onExport: () -> Unit, onClearMessage: () -> Unit) {
@@ -49,9 +49,16 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                     verticalAlignment = Alignment.CenterVertically) {
                     Mountains(Modifier.size(36.dp), Color(0xFFB4E6BE))
                     Spacer(Modifier.width(12.dp))
-                    Column {
+                    Column(Modifier.weight(1f)) {
                         Text(stringResource(R.string.app_name), color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                        Text("Le relief de votre parcours", color = Color(0xFFB6C8B9), fontSize = 12.sp)
+                        Text(t("Le relief de votre parcours"), color = Color(0xFFB6C8B9), fontSize = 12.sp)
+                    }
+                    for (language in listOf("fr", "en")) {
+                        TextButton(onClick = { I18n.select(language) },
+                            modifier = Modifier.width(42.dp), contentPadding = PaddingValues(0.dp)) {
+                            Text(language.uppercase(), color = if (I18n.language == language) Color.White else Color(0xFF819B91),
+                                fontWeight = if (I18n.language == language) FontWeight.Bold else FontWeight.Normal)
+                        }
                     }
                 }
             }, bottomBar = {
@@ -61,7 +68,7 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                             modifier = Modifier.fillMaxWidth().heightIn(min = 54.dp), shape = RoundedCornerShape(16.dp)) {
                             Icon(if (state.busy) Icons.Default.Close else Icons.Default.Add, null)
                             Spacer(Modifier.width(10.dp))
-                            Text(if (state.busy) "Annuler le calcul" else if (state.result != null) "Importer une autre trace GPX" else "Importer une trace GPX", fontSize = 16.sp)
+                            Text(if (state.busy) t("Annuler le calcul") else if (state.result != null) t("Importer une autre trace GPX") else t("Importer une trace GPX"), fontSize = 16.sp)
                         }
                     }
                 }
@@ -76,17 +83,17 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                     if (state.result != null && state.error != null) {
                         Card {
                             Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(state.error, Modifier.weight(1f))
-                                IconButton(onClick = onClearMessage) { Icon(Icons.Default.Close, "Fermer le message") }
+                                Text(t(state.error), Modifier.weight(1f))
+                                IconButton(onClick = onClearMessage) { Icon(Icons.Default.Close, t("Fermer le message")) }
                             }
                         }
                     }
                     ProtocolCard()
                     if (state.result == null && !state.busy) {
-                        Text("Le premier calcul utilise Internet. Les données téléchargées restent disponibles pour cette trace hors connexion.",
+                        Text(t("Le premier calcul utilise Internet. Les données téléchargées restent disponibles pour cette trace hors connexion."),
                             color = colors.onSurfaceVariant, fontSize = 13.sp, lineHeight = 19.sp)
                     }
-                    Text("IGN · Mapterhorn · FABDEM · Copernicus · SRTM", color = colors.onSurfaceVariant, fontSize = 11.sp)
+                    Text(t("IGN · Mapterhorn · FABDEM · Copernicus · SRTM"), color = colors.onSurfaceVariant, fontSize = 11.sp)
                 }
             }
         }
@@ -97,8 +104,8 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Mountains(Modifier.fillMaxWidth().height(110.dp), MaterialTheme.colorScheme.primary)
-            Text("Le dénivelé de votre parcours", fontSize = 27.sp, lineHeight = 33.sp, fontWeight = FontWeight.SemiBold)
-            Text("Importez votre parcours pour calculer sa montée, sa descente et son profil d'altitude à partir des modèles de terrain.", lineHeight = 23.sp)
+            Text(t("Le dénivelé de votre parcours"), fontSize = 27.sp, lineHeight = 33.sp, fontWeight = FontWeight.SemiBold)
+            Text(t("Importez votre parcours pour calculer sa montée, sa descente et son profil d'altitude à partir des modèles de terrain."), lineHeight = 23.sp)
         }
     }
 }
@@ -106,14 +113,14 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
 @Composable private fun Loading(state: AppState) {
     Card(shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-            Text(state.fileName ?: "Votre parcours", fontWeight = FontWeight.SemiBold)
-            Text(state.progress?.message ?: "Calcul en cours", fontSize = 21.sp)
+            Text(state.fileName ?: t("Votre parcours"), fontWeight = FontWeight.SemiBold)
+            Text(t(state.progress?.message ?: "Calcul en cours"), fontSize = 21.sp)
             val progress = state.progress
             if (progress != null && progress.total > 0 && progress.completed > 0) {
                 LinearProgressIndicator(progress = { (progress.completed.toFloat() / progress.total).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-                Text("${meters(progress.completed.toDouble())} / ${meters(progress.total.toDouble())} positions", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(t("${meters(progress.completed.toDouble())} / ${meters(progress.total.toDouble())} positions"), color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else LinearProgressIndicator(Modifier.fillMaxWidth())
-            Text("Lecture des altitudes, puis lissage du profil et cumul des montées.", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+            Text(t("Lecture des altitudes, puis lissage du profil et cumul des montées."), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
         }
     }
 }
@@ -122,10 +129,10 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     Card(shape = RoundedCornerShape(24.dp)) {
         Column(Modifier.fillMaxWidth().padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error)
-            Text("Calcul indisponible", fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
+            Text(t("Calcul indisponible"), fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
             name?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            Text(message, fontSize = 14.sp, lineHeight = 21.sp)
-            OutlinedButton(onClick = onRetry) { Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(8.dp)); Text("Réessayer") }
+            Text(t(message), fontSize = 14.sp, lineHeight = 21.sp)
+            OutlinedButton(onClick = onRetry) { Icon(Icons.Default.Refresh, null); Spacer(Modifier.width(8.dp)); Text(t("Réessayer")) }
         }
     }
 }
@@ -136,30 +143,30 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     Card(shape = RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(containerColor = colors.primaryContainer)) {
         Column(Modifier.fillMaxWidth().padding(24.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("DÉNIVELÉ POSITIF", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+                Text(t("DÉNIVELÉ POSITIF"), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
                 Spacer(Modifier.weight(1f))
                 Icon(Icons.Default.Check, null, tint = colors.primary, modifier = Modifier.size(20.dp))
             }
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(meters(result.computed.gain.up), fontSize = 66.sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-2).sp, modifier = Modifier.weight(1f, fill = false))
-                Text(" m", fontSize = 28.sp, modifier = Modifier.padding(bottom = 12.dp))
+                Text(t(" m"), fontSize = 28.sp, modifier = Modifier.padding(bottom = 12.dp))
             }
             Text(result.series.source.label, fontWeight = FontWeight.Medium, fontSize = 16.sp)
-            Text(if (result.series.fromCache) "Altitudes conservées sur cet appareil" else "Profil complet · ${meters(result.prepared.sampleCount.toDouble())} positions", color = colors.onSurfaceVariant, fontSize = 12.sp)
+            Text(if (result.series.fromCache) t("Altitudes conservées sur cet appareil") else t("Profil complet · ${meters(result.prepared.sampleCount.toDouble())} positions"), color = colors.onSurfaceVariant, fontSize = 12.sp)
         }
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Metric("DESCENTE · D−", "${meters(result.computed.gain.down)} m", Modifier.weight(1f))
-        Metric("DISTANCE", "${distance(result.prepared.length)} km", Modifier.weight(1f))
+        Metric(t("DESCENTE · D−"), t("${meters(result.computed.gain.down)} m"), Modifier.weight(1f))
+        Metric(t("DISTANCE"), t("${distance(result.prepared.length)} km"), Modifier.weight(1f))
     }
     ProfileCard(result.computed.profiles, result.prepared.length, result.computed.minAltitude, result.computed.maxAltitude)
     if (result.series.fallbacks.isNotEmpty()) {
         Card(shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Modèle de repli utilisé", fontWeight = FontWeight.SemiBold)
-                Text("${result.series.source.label} a fourni le premier profil complet.", fontSize = 14.sp)
+                Text(t("Modèle de repli utilisé"), fontWeight = FontWeight.SemiBold)
+                Text(t("${result.series.source.label} a fourni le premier profil complet."), fontSize = 14.sp)
                 for (failure in result.series.fallbacks) {
-                    Text("${failure.source.label} : ${failure.reason}", fontSize = 12.sp, color = colors.onSurfaceVariant)
+                    Text(t("${failure.source.label} : ${t(failure.reason)}"), fontSize = 12.sp, color = colors.onSurfaceVariant)
                 }
             }
         }
@@ -168,21 +175,21 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp)) {
             TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
-                Text(if (expanded) "Masquer les valeurs du GPX" else "Comparer avec les altitudes du GPX")
+                Text(if (expanded) t("Masquer les valeurs du GPX") else t("Comparer avec les altitudes du GPX"))
             }
             if (expanded) {
-                Text("Somme brute des variations", fontWeight = FontWeight.Medium)
-                Text(result.computed.gpxRaw?.let { "D+ ${meters(it.up)} m · D− ${meters(it.down)} m" } ?: "Altitudes GPX manquantes.", fontSize = 14.sp)
+                Text(t("Somme brute des variations"), fontWeight = FontWeight.Medium)
+                Text(result.computed.gpxRaw?.let { t("D+ ${meters(it.up)} m · D− ${meters(it.down)} m") } ?: t("Altitudes GPX manquantes."), fontSize = 14.sp)
                 Spacer(Modifier.height(14.dp))
-                Text("GPX filtré · même protocole", fontWeight = FontWeight.Medium)
-                Text(result.computed.gpxFiltered?.let { "D+ ${meters(it.up)} m · D− ${meters(it.down)} m" } ?: "Altitudes GPX manquantes.", fontSize = 14.sp)
+                Text(t("GPX filtré · même protocole"), fontWeight = FontWeight.Medium)
+                Text(result.computed.gpxFiltered?.let { t("D+ ${meters(it.up)} m · D− ${meters(it.down)} m") } ?: t("Altitudes GPX manquantes."), fontSize = 14.sp)
                 Spacer(Modifier.height(14.dp))
-                Text("${meters(result.prepared.track.pointCount.toDouble())} points d'origine · ${result.prepared.segments.size} segment(s)", color = colors.onSurfaceVariant, fontSize = 12.sp)
+                Text(t("${meters(result.prepared.track.pointCount.toDouble())} points d'origine · ${result.prepared.segments.size} segment(s)"), color = colors.onSurfaceVariant, fontSize = 12.sp)
             }
         }
     }
     OutlinedButton(onClick = onExport, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp)) {
-        Icon(Icons.Default.Share, null); Spacer(Modifier.width(8.dp)); Text("Exporter le résultat en CSV")
+        Icon(Icons.Default.Share, null); Spacer(Modifier.width(8.dp)); Text(t("Exporter le résultat en CSV"))
     }
 }
 
@@ -212,10 +219,10 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     } }
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Text("Profil d'altitude", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text(t("Profil d'altitude"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("Min. ${meters(minAltitude)} m", fontSize = 12.sp, color = labels)
-                Text("Max. ${meters(maxAltitude)} m", fontSize = 12.sp, color = labels)
+                Text(t("Min. ${meters(minAltitude)} m"), fontSize = 12.sp, color = labels)
+                Text(t("Max. ${meters(maxAltitude)} m"), fontSize = 12.sp, color = labels)
             }
             Canvas(Modifier.fillMaxWidth().height(150.dp)) {
                 val span = max(20.0, maxAltitude - minAltitude)
@@ -243,8 +250,8 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("0 km", color = labels, fontSize = 11.sp)
-                Text("${distance(length)} km", color = labels, fontSize = 11.sp)
+                Text(t("0 km"), color = labels, fontSize = 11.sp)
+                Text(t("${distance(length)} km"), color = labels, fontSize = 11.sp)
             }
         }
     }
@@ -255,22 +262,22 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     val colors = MaterialTheme.colorScheme
     Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(containerColor = colors.surfaceVariant)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text("Protocole de calcul", fontWeight = FontWeight.SemiBold)
+            Text(t("Protocole de calcul"), fontWeight = FontWeight.SemiBold)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pill("Pas 5 m", Modifier.weight(1f))
-                Pill("σ 20 m", Modifier.weight(1f))
-                Pill("Seuil 2 m", Modifier.weight(1f))
+                Pill(t("Pas 5 m"), Modifier.weight(1f))
+                Pill(t("σ 20 m"), Modifier.weight(1f))
+                Pill(t("Seuil 2 m"), Modifier.weight(1f))
             }
             TextButton(onClick = { expanded = !expanded }, contentPadding = PaddingValues(0.dp)) {
                 Icon(Icons.Default.Info, null, Modifier.size(16.dp)); Spacer(Modifier.width(8.dp))
-                Text(if (expanded) "Réduire les explications" else "Méthode et sources")
+                Text(if (expanded) t("Réduire les explications") else t("Méthode et sources"))
             }
             if (expanded) {
-                Text("Le parcours est rééchantillonné tous les 5 m. Seules les altitudes sont lissées, avec une gaussienne de σ = 20 m. Une montée ou descente est confirmée après un retournement de 2 m ; les petites hausses successives restent cumulées.", fontSize = 13.sp, lineHeight = 20.sp)
-                Text("Ordre de repli : " + ElevationRepository.RANKING.joinToString(" → ") { it.label } + ". Le premier modèle couvrant toute la trace fournit le profil. Cet ordre vient de la comparaison en France métropolitaine.", fontSize = 13.sp, lineHeight = 20.sp)
-                Text("Les coordonnées GPX sont conservées. Près d'une falaise, leur précision peut fortement influencer le résultat. Le D+ affiché est une estimation selon ce protocole.", fontSize = 13.sp, lineHeight = 20.sp)
-                Text("Les coordonnées sont envoyées au service IGN pour lire les altitudes. Les autres modèles utilisent leurs tuiles publiques. GPX et altitudes sont conservés sur cet appareil.", fontSize = 12.sp, lineHeight = 19.sp)
-                Text("Données : IGN (Licence Ouverte) ; Mapterhorn et ses producteurs (mapterhorn.com/attribution) ; FABDEM 1.2, University of Bristol (CC BY-NC-SA 4.0) ; Copernicus DEM © DLR e.V., Airbus Defence and Space GmbH, financé par l'Union européenne ; SRTM NASA/USGS, miroir Kurviger.", fontSize = 11.sp, lineHeight = 17.sp)
+                Text(t("Le parcours est rééchantillonné tous les 5 m. Seules les altitudes sont lissées, avec une gaussienne de σ = 20 m. Une montée ou descente est confirmée après un retournement de 2 m ; les petites hausses successives restent cumulées."), fontSize = 13.sp, lineHeight = 20.sp)
+                Text(t("Ordre de repli : ") + ElevationRepository.RANKING.joinToString(t(" → ")) { it.label } + t(". Le premier modèle couvrant toute la trace fournit le profil. Cet ordre vient de la comparaison en France métropolitaine."), fontSize = 13.sp, lineHeight = 20.sp)
+                Text(t("Les coordonnées GPX sont conservées. Près d'une falaise, leur précision peut fortement influencer le résultat. Le D+ affiché est une estimation selon ce protocole."), fontSize = 13.sp, lineHeight = 20.sp)
+                Text(t("Les coordonnées sont envoyées au service IGN pour lire les altitudes. Les autres modèles utilisent leurs tuiles publiques. GPX et altitudes sont conservés sur cet appareil."), fontSize = 12.sp, lineHeight = 19.sp)
+                Text(t("Données : IGN (Licence Ouverte) ; Mapterhorn et ses producteurs (mapterhorn.com/attribution) ; FABDEM 1.2, University of Bristol (CC BY-NC-SA 4.0) ; Copernicus DEM © DLR e.V., Airbus Defence and Space GmbH, financé par l'Union européenne ; SRTM NASA/USGS, miroir Kurviger."), fontSize = 11.sp, lineHeight = 17.sp)
             }
         }
     }

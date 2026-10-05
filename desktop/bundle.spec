@@ -7,7 +7,8 @@ from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 root = Path(SPECPATH)
 assets = root / "build/assets"
 resources = root.parent / "app/src/test/resources"
-datas = [(str(assets / "licenses"), "licenses"), (str(root / "README.md"), ".")]
+datas = [(str(assets / "licenses"), "licenses"), (str(root / "README.md"), "."),
+         (str(root / "README.en.md"), ".")]
 datas += [(str(root / "gpx2elev/assets"), "gpx2elev/assets")]
 datas += collect_data_files("rasterio")
 datas += [(str(resources / name), "smoke_data") for name in ("copernicus.tif", "fabdem.tif", "mapterhorn.webp")]
@@ -24,7 +25,7 @@ exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="gpx2elev", debug=Fals
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="gpx2elev")
 if sys.platform == "darwin":
     app = BUNDLE(coll, name="gpx2elev.app", icon=str(assets / "icon.icns"),
-                 bundle_identifier="com.nico.gpx2elev", version="0.2.2",
+                 bundle_identifier="com.nico.gpx2elev", version="0.2.3",
                  info_plist={"NSHighResolutionCapable": True,
                              "LSMinimumSystemVersion": "13.0",
                              "CFBundleDisplayName": "gpx2elev",

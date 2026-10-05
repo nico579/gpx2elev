@@ -1,9 +1,9 @@
 {
   "repository": "nico579/gpx2elev",
-  "tag": "v0.1",
-  "version": "0.1",
-  "apk": "gpx2elev-0.1.apk",
-  "sha256": "424b1667c7df13e678e67d9d3b8c1cdefc693ed8413fe2413597da4352ddefa6",
-  "verification": "verification.json",
-  "verification_sha256": "22440fc2b59db7d9e1709ea8349fc695baaec0e66d33c756d4c3e4d0cdcc0787"
+  "tag": "v0.2.3",
+  "version": "0.2",
+  "apk": "gpx2elev-0.2.apk",
+  "sha256": "a988cd804b3c0858b94b08979c8e3d4cb1c5f5dbfdb0def0d6bac08d81a00fb0",
+  "verification": "verification-android.json",
+  "verification_sha256": "d73be4b4d72c436cdb6a8caf44d13056357ee33ebdcd2d700b301356a7312b5a"
 }

@@ -15,6 +15,7 @@ import com.nico.gpxdenivele.ui.GpxScreen
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -30,6 +31,24 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class AndroidUiTest {
     @get:Rule val rule = createAndroidComposeRule<MainActivity>()
+
+    @Before fun useFrenchForExistingScreens() {
+        rule.runOnUiThread { I18n.select("fr") }
+    }
+
+    @Test fun languageToggleUpdatesWelcomeAndPersistsChoice() {
+        rule.onNodeWithText("EN").performClick()
+        rule.onNodeWithText("Import a GPX track").assertIsDisplayed()
+        rule.onNodeWithText("Your route's elevation gain").assertIsDisplayed()
+        screenshot("welcome_EN")
+        assertEquals("en", rule.activity.getSharedPreferences("language", 0).getString("choice", null))
+        rule.runOnUiThread { I18n.initialize(rule.activity) }
+        assertEquals("en", I18n.language)
+        assertEquals("Invalid coordinates at point 42.", I18n.text("Coordonnées invalides au point 42."))
+        rule.onNodeWithText("FR").performClick()
+        rule.onNodeWithText("Importer une trace GPX").assertIsDisplayed()
+        assertEquals("fr", rule.activity.getSharedPreferences("language", 0).getString("choice", null))
+    }
 
     private fun reference(): Pair<PreparedTrack, DoubleArray> {
         assumeTrue("Banc d'essai personnel local", javaClass.getResource("/reference.gpx") != null && javaClass.getResource("/reference.csv") != null)
@@ -105,6 +124,20 @@ class AndroidUiTest {
 
     @Test @Config(qualifiers = "w411dp-h891dp-night-mdpi") fun resultInDarkMode() {
         showResult(); screenshot("resultat_nuit")
+    }
+
+    @Test fun resultInEnglishKeepsGainAndFormatsDistance() {
+        showResult()
+        rule.onNodeWithText("EN").performClick()
+        rule.onNodeWithText("ELEVATION GAIN").assertIsDisplayed()
+        rule.onNodeWithText("735").assertIsDisplayed()
+        rule.onAllNodesWithText("22.33 km")[0].assertIsDisplayed()
+        screenshot("result_EN")
+        rule.onNodeWithText("Compare with GPX elevations").performScrollTo().performClick()
+        rule.onNodeWithText("Raw sum of elevation changes").performScrollTo().assertIsDisplayed()
+        screenshot("comparison_EN")
+        rule.onNodeWithText("FR").performClick()
+        rule.onNodeWithText("Somme brute des variations").assertIsDisplayed()
     }
 
     @Test @Config(qualifiers = "w891dp-h411dp-land-mdpi") fun resultInLandscape() {

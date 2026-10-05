@@ -73,6 +73,13 @@ def run_smoke(report_path, fixtures=None):
                 raise AssertionError("Profil exporté incomplet.")
         app.processEvents()
         window.grab().save(str(report_path.with_suffix(".png")))
+        gain = result.computed.gain
+        for index, language, caption in ((0, "fr", "Choisir un GPX"), (1, "en", "Choose a GPX")):
+            window.language_picker.setCurrentIndex(index)
+            if window.import_button.text() != caption or window.result.computed.gain != gain:
+                raise AssertionError("Échec du changement de langue ou résultat modifié.")
+            app.processEvents()
+            window.grab().save(str(report_path.with_suffix(f".{language}.png")))
         # Verify the libraries and their binary plugins inside the frozen bundle.
         for name in ("copernicus.tif", "fabdem.tif"):
             with rasterio.open(fixtures / name) as dataset:
@@ -85,7 +92,7 @@ def run_smoke(report_path, fixtures=None):
                 raise AssertionError("WebP illisible.")
         report = {"status": "OK", "frozen": bool(getattr(sys, "frozen", False)),
                   "platform": sys.platform, "checks": ["ouverture GPX par glisser-déposer", "calcul hors connexion",
-                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "GeoTIFF GDAL", "WebP Terrarium"],
+                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "GeoTIFF GDAL", "WebP Terrarium"],
                   "resultat_synthetique": result.summary()}
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()

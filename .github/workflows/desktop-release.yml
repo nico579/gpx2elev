@@ -87,6 +87,8 @@ jobs:
           cd release-assets
           sha256sum -c SHA256SUMS.txt
           cd ..
-          gh release create "$RELEASE_TAG" --verify-tag --title "gpx2elev $RELEASE_TAG — Android, Windows, Linux et macOS" --notes-file desktop/RELEASE_NOTES.md --draft
-          gh release upload "$RELEASE_TAG" release-assets/*
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --verify-tag --title "gpx2elev $RELEASE_TAG — Android, Windows, Linux et macOS" --notes-file desktop/RELEASE_NOTES.md --draft
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber
           gh release edit "$RELEASE_TAG" --draft=false --latest

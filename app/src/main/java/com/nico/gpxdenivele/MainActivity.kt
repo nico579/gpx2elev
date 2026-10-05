@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        I18n.initialize(this)
         if (savedInstanceState == null && !importIntent(intent)) model.restore()
         setContent {
             val state by model.state.collectAsState()

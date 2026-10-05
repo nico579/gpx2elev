@@ -1,12 +1,16 @@
 # gpx2elev
 
+**[Français](README.md) | [English](README.en.md)**
+
 **[Release commune Android, Windows, Linux et macOS](https://github.com/nico579/gpx2elev/releases/latest)** : APK Android et [bundles Python autonomes](desktop/README.md), avec le même calcul et les mêmes sources.
 
 Application Android personnelle, en Kotlin et Jetpack Compose, construite avec le même socle qu'OBD2 Dash. Son identifiant est `com.nico.gpxdenivele` : elle s'installe à côté d'OBD2 Dash.
 
-[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). L'APK conserve sa version Android **0.1**, distincte de celle des bundles de bureau. Les prochaines releases incluent automatiquement l'APK signé désigné dans `android-release.json`, son rapport de vérification et sa somme SHA-256 ; mettre ce manifeste à jour lors d'une nouvelle release Android.
+[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). L'APK conserve sa version Android **0.2**, distincte de celle des bundles de bureau. Les prochaines releases incluent automatiquement l'APK signé désigné dans `android-release.json`, son rapport de vérification et sa somme SHA-256 ; mettre ce manifeste à jour lors d'une nouvelle release Android.
 
 ## Utilisation
+
+Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement la langue et mémorise le choix. Au premier lancement, la langue du système détermine le choix : français pour un système français, anglais sinon. Les nombres suivent la langue choisie ; les calculs et les schémas CSV restent identiques.
 
 1. Installer l'APK sur un appareil Android 8.0 ou supérieur.
 2. Toucher **Importer une trace GPX**, ou ouvrir/partager un GPX avec gpx2elev.
