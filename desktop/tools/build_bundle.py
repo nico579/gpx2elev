@@ -94,7 +94,7 @@ def main():
         with tarfile.open(archive, "w:gz") as output:
             output.add(ROOT / "dist/gpx2elev", arcname="gpx2elev")
     checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (release / f"SHA256SUMS-{system}-{arch}.txt").write_text(f"{checksum}  {archive.name}\n", encoding="utf-8")
+    (release / f"SHA256SUMS-{system}-{arch}.txt").write_text(f"{checksum}  {archive.name}\n", encoding="utf-8", newline="\n")
     print(json.dumps({"archive": archive.name, "bytes": archive.stat().st_size, "sha256": checksum, "verification": "OK"}))
 
 

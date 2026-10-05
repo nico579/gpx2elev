@@ -79,7 +79,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          cat release-assets/SHA256SUMS-*.txt > release-assets/SHA256SUMS.txt
+          cat release-assets/SHA256SUMS-*.txt | tr -d '\r' > release-assets/SHA256SUMS.txt
           cd release-assets
           sha256sum -c SHA256SUMS.txt
           cd ..
