@@ -1,0 +1,15 @@
+.gradle/
+.idea/
+local.properties
+**/build/
+captures/
+*.part
+.idea/
+*.iml
+*.keystore
+*.jks
+# Local personal-track regression data.
+app/src/test/resources/reference.gpx
+app/src/test/resources/reference.csv
+app/src/test/resources/reference_expected.json
+app/src/test/resources/live_expected.csv
