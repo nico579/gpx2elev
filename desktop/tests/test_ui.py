@@ -32,6 +32,7 @@ class UiTests(unittest.TestCase):
             window.current_path = path
             window.show_result(result)
             window.language_picker.setCurrentIndex(1)
+            window.select_language()
             settings = (root / 'settings.json').read_bytes()
             self.assertEqual(window.clear_cache_button.text(), 'Clear cache')
             self.assertGreater(sum(window.cache_bytes.values()), 0)

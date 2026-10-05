@@ -9,14 +9,14 @@ data class CacheSize(val profiles: Long = 0, val tiles: Long = 0) {
 }
 
 object CacheStorage {
-    private fun size(directory: File): Long {
+    private fun directorySize(directory: File): Long {
         if (!directory.exists() || Files.isSymbolicLink(directory.toPath())) return 0
         return Files.walk(directory.toPath()).use { paths ->
             paths.filter { Files.isRegularFile(it, NOFOLLOW_LINKS) }.mapToLong { Files.size(it) }.sum()
         }
     }
 
-    fun size(base: File) = CacheSize(size(File(base, "profiles")), size(File(base, "tiles")))
+    fun size(base: File) = CacheSize(directorySize(File(base, "profiles")), directorySize(File(base, "tiles")))
 
     fun clear(base: File) {
         for (name in listOf("profiles", "tiles")) {
