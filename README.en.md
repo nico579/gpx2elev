@@ -4,7 +4,7 @@
 
 **[Download for Android, Windows, Linux and macOS](https://github.com/nico579/gpx2elev/releases/latest)**: a signed Android APK and [standalone Python desktop bundles](desktop/README.en.md), using the same calculation protocol and elevation sources.
 
-gpx2elev estimates elevation gain (D+), elevation loss (D−) and the elevation profile of a GPX track. The Android application uses Kotlin and Jetpack Compose. Its package identifier is `com.nico.gpxdenivele`; it installs alongside OBD2 Dash.
+**gpx2elev** estimates elevation gain (D+), elevation loss (D−) and the elevation profile of a GPX track. The Android application uses Kotlin and Jetpack Compose.
 
 ## Usage
 
