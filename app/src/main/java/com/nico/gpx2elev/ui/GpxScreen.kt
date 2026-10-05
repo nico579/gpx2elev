@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele.ui
+package com.nico.gpx2elev.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -22,13 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.nico.gpxdenivele.AppState
-import com.nico.gpxdenivele.Result
-import com.nico.gpxdenivele.R
-import com.nico.gpxdenivele.core.Profile
-import com.nico.gpxdenivele.data.ElevationRepository
-import com.nico.gpxdenivele.I18n
-import com.nico.gpxdenivele.I18n.text as t
+import com.nico.gpx2elev.AppState
+import com.nico.gpx2elev.Result
+import com.nico.gpx2elev.R
+import com.nico.gpx2elev.core.Profile
+import com.nico.gpx2elev.data.ElevationRepository
+import com.nico.gpx2elev.I18n
+import com.nico.gpx2elev.I18n.text as t
 import kotlin.math.*
 
 private val Green = Color(0xFF237A56)

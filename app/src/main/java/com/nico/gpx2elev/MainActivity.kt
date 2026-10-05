@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
 import android.content.Intent
 import android.net.Uri
@@ -11,7 +11,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.IntentCompat
 import androidx.lifecycle.ViewModelProvider
-import com.nico.gpxdenivele.ui.GpxScreen
+import com.nico.gpx2elev.ui.GpxScreen
 
 class MainActivity : ComponentActivity() {
     private val model: AppViewModel by viewModels { ViewModelProvider.AndroidViewModelFactory(application) }

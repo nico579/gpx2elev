@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
 import android.content.Context
 import androidx.compose.runtime.getValue

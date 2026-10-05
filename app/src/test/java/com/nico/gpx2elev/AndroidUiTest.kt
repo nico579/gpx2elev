@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
 import android.app.Activity
 import android.content.Intent
@@ -9,9 +9,9 @@ import android.os.Looper
 import androidx.activity.compose.setContent
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
-import com.nico.gpxdenivele.core.*
-import com.nico.gpxdenivele.data.*
-import com.nico.gpxdenivele.ui.GpxScreen
+import com.nico.gpx2elev.core.*
+import com.nico.gpx2elev.data.*
+import com.nico.gpx2elev.ui.GpxScreen
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -59,7 +59,7 @@ class AndroidUiTest {
         return prepared to values
     }
     private fun screenshot(name: String) {
-        val file = File(System.getProperty("gpxdenivele.qa"), "$name.png")
+        val file = File(System.getProperty("gpx2elev.qa"), "$name.png")
         file.parentFile!!.mkdirs()
         rule.waitForIdle()
         lateinit var bitmap: Bitmap

@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele.core
+package com.nico.gpx2elev.core
 
 import kotlin.math.*
 

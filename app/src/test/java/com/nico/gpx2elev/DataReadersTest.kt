@@ -1,7 +1,7 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
-import com.nico.gpxdenivele.core.GeoPoint
-import com.nico.gpxdenivele.data.*
+import com.nico.gpx2elev.core.GeoPoint
+import com.nico.gpx2elev.data.*
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test

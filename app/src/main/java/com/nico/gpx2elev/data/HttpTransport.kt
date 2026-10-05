@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele.data
+package com.nico.gpx2elev.data
 
 import java.io.*
 import java.net.HttpURLConnection

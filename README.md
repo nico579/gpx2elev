@@ -6,9 +6,11 @@
 
 **gpx2elev** estime le dénivelé positif (D+), le dénivelé négatif (D−) et le profil d'altitude d'une trace GPX. L'application Android est développée en Kotlin et Jetpack Compose.
 
-[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). L'APK conserve sa version Android **0.2**, distincte de celle des bundles de bureau. Les prochaines releases incluent automatiquement l'APK signé désigné dans `android-release.json`, son rapport de vérification et sa somme SHA-256 ; mettre ce manifeste à jour lors d'une nouvelle release Android.
+[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.3.0**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
 
 ## Utilisation
+
+Android 0.3.0 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
 
 Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement la langue et mémorise le choix. Au premier lancement, la langue du système détermine le choix : français pour un système français, anglais sinon. Les nombres suivent la langue choisie ; les calculs et les schémas CSV restent identiques.
 
@@ -49,6 +51,10 @@ Les lecteurs FABDEM et Copernicus prennent en charge les GeoTIFF en WGS84, float
 Les limites d'import sont de 20 Mo, 250 000 points et 300 000 positions rééchantillonnées. Les GPX 1.0/1.1, avec ou sans préfixe de namespace, sont acceptés ; les routes `rte` sont aussi acceptées. Les coordonnées non finies ou hors limites sont rejetées. Les fichiers XML avec DTD sont refusés.
 
 ## Construction
+
+Les builds de release sont effectués sur GitHub par [le workflow Release](.github/workflows/release.yml). Pour une nouvelle version, mettre à jour `VERSION` et `desktop/gpx2elev/assets/version.txt`, augmenter le `versionCode` Android, puis pousser le tag correspondant. L’APK et les bundles ont toujours le même numéro de version.
+
+Pour le développement local :
 
 Ouvrir ce dossier dans Android Studio, ou depuis PowerShell :
 

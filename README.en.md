@@ -8,6 +8,8 @@
 
 ## Usage
 
+Android 0.3.0 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
+
 1. Install the APK on Android 8.0 or later, or extract the desktop bundle for your platform.
 2. Select **EN / FR** at the top of the screen. The selection is saved. The first launch uses French on a French-language device, and English otherwise.
 3. Choose a GPX track. On Android, you can also open or **share a GPX file with gpx2elev**. On desktop, you can drop it into the window.
@@ -48,7 +50,7 @@ This is an estimate under a defined protocol, rather than a field-validated meas
 
 ## Android build
 
-Open the repository in Android Studio, or run `build.ps1` with PowerShell. The script requires JDK 17 or 21 and an Android SDK configured in `local.properties`, which is excluded from Git. The project uses Gradle 8.7, AGP 8.5.2, Kotlin 1.9.24 and SDK 34.
+Release APKs are built by GitHub Actions. For local development, open the repository in Android Studio, or run `build.ps1` with PowerShell. The script requires JDK 17 or 21 and an Android SDK configured in `local.properties`, which is excluded from Git. The project uses Gradle 8.7, AGP 8.5.2, Kotlin 1.9.24 and SDK 34.
 
 ```powershell
 ./build.ps1
@@ -57,7 +59,9 @@ Open the repository in Android Studio, or run `build.ps1` with PowerShell. The s
 
 APK output: `app/build/outputs/apk/release/app-release.apk`. Local releases use the project's development key in `app/debug.keystore`, excluded from Git. Keep that key locally for compatible updates. Clones without it use Gradle's default Android development key. The OBD2 Dash key is not used.
 
-`android-release.json` pins the signed APK and verification report included in combined desktop releases. Their SHA-256 checksums are verified before publication. Android and desktop version numbers are separate.
+Android and Python share version **0.3.0**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
+
+For a new release, update `VERSION` and `desktop/gpx2elev/assets/version.txt`, increment the Android `versionCode`, and push the matching tag. Version mismatches block publication.
 
 ## Verification
 

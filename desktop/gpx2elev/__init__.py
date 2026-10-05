@@ -1,3 +1,5 @@
 """gpx2elev desktop: the same spatial protocol as the Android application."""
 
-__version__ = "0.2.3"
+from pathlib import Path
+
+__version__ = (Path(__file__).parent / "assets/version.txt").read_text(encoding="utf-8").strip()

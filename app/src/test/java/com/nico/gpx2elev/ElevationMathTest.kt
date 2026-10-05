@@ -1,6 +1,6 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
-import com.nico.gpxdenivele.core.*
+import com.nico.gpx2elev.core.*
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test

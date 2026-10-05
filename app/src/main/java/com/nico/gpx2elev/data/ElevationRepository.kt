@@ -1,7 +1,7 @@
-package com.nico.gpxdenivele.data
+package com.nico.gpx2elev.data
 
 import android.graphics.BitmapFactory
-import com.nico.gpxdenivele.core.GeoPoint
+import com.nico.gpx2elev.core.GeoPoint
 import org.json.JSONObject
 import java.io.*
 import java.nio.ByteBuffer

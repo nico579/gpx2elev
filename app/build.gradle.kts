@@ -3,14 +3,14 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 android {
-    namespace = "com.nico.gpxdenivele"
+    namespace = "com.nico.gpx2elev"
     compileSdk = 34
     defaultConfig {
-        applicationId = "com.nico.gpxdenivele"
+        applicationId = "com.nico.gpx2elev"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = rootProject.file("VERSION").readText().trim()
     }
     signingConfigs.getByName("debug") {
         val personalKey = file("debug.keystore")
@@ -40,8 +40,8 @@ android {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
             it.maxHeapSize = "1536m"
-            it.systemProperty("gpxdenivele.qa", rootProject.file("build/qa").absolutePath)
-            it.systemProperty("gpxdenivele.live", providers.gradleProperty("liveReaders").getOrElse("false"))
+            it.systemProperty("gpx2elev.qa", rootProject.file("build/qa").absolutePath)
+            it.systemProperty("gpx2elev.live", providers.gradleProperty("liveReaders").getOrElse("false"))
             it.jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED", "--add-opens=java.base/java.util=ALL-UNNAMED",
                 "--add-opens=java.base/java.io=ALL-UNNAMED", "--add-opens=java.base/java.net=ALL-UNNAMED",
                 "--add-opens=java.base/java.security=ALL-UNNAMED", "--add-opens=java.base/java.text=ALL-UNNAMED",

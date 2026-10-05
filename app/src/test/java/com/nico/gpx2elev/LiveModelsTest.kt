@@ -1,9 +1,9 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
-import com.nico.gpxdenivele.core.GeoPoint
-import com.nico.gpxdenivele.core.GpxParser
-import com.nico.gpxdenivele.core.ElevationMath
-import com.nico.gpxdenivele.data.*
+import com.nico.gpx2elev.core.GeoPoint
+import com.nico.gpx2elev.core.GpxParser
+import com.nico.gpx2elev.core.ElevationMath
+import com.nico.gpx2elev.data.*
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -19,9 +19,9 @@ import java.io.File
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class LiveModelsTest {
     @Test fun allPublicSourcesAgreeWithAuditedLocalData() {
-        assumeTrue(System.getProperty("gpxdenivele.live") == "true")
+        assumeTrue(System.getProperty("gpx2elev.live") == "true")
         assumeTrue("Banc d'essai personnel local", javaClass.getResource("/live_expected.csv") != null && javaClass.getResource("/reference.gpx") != null)
-        val qa = File(checkNotNull(System.getProperty("gpxdenivele.qa")))
+        val qa = File(checkNotNull(System.getProperty("gpx2elev.qa")))
         val rows = javaClass.getResourceAsStream("/live_expected.csv")!!.bufferedReader().use { it.readLines() }
             .drop(1).map { it.split(',') }.groupBy { ElevationSource.valueOf(it[0]) }
         val models = PublicModels(File(qa.parentFile, "live-cache"), HttpTransport())

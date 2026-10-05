@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
 import android.content.ClipData
 import android.content.ClipDescription
@@ -6,8 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Looper
 import androidx.lifecycle.ViewModelProvider
-import com.nico.gpxdenivele.core.*
-import com.nico.gpxdenivele.data.*
+import com.nico.gpx2elev.core.*
+import com.nico.gpx2elev.data.*
 import org.junit.Assert.*
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,6 +27,7 @@ import java.io.File
 class SharingIntentTest {
     private fun receive(clipOnly: Boolean) {
         val app = RuntimeEnvironment.getApplication()
+        assertEquals("com.nico.gpx2elev", app.packageName)
         val bytes = "<gpx><rte><rtept lat='45' lon='5'><ele>500</ele></rtept><rtept lat='45' lon='5.001'><ele>510</ele></rtept></rte></gpx>".toByteArray()
         val prepared = bytes.inputStream().use { ElevationMath.prepare(GpxParser.parse(it)) }
         val distances = prepared.segments.single().distance
@@ -42,7 +43,9 @@ class SharingIntentTest {
         for (type in listOf("application/gpx+xml", "application/gpx", "application/x-gpx+xml", "application/x-gpx", "text/gpx", "text/gpx+xml", "text/plain", "text/xml", "application/octet-stream")) {
             @Suppress("DEPRECATION")
             val targets = app.packageManager.queryIntentActivities(Intent(Intent.ACTION_SEND).setType(type), 0)
-            assertTrue("GPX share MIME $type", targets.any { it.activityInfo.name == MainActivity::class.java.name })
+            assertTrue("GPX share MIME $type", targets.any {
+                it.activityInfo.name == MainActivity::class.java.name && it.activityInfo.packageName == "com.nico.gpx2elev"
+            })
         }
         val controller = Robolectric.buildActivity(MainActivity::class.java, if (clipOnly) Intent(Intent.ACTION_MAIN) else send).setup()
         try {

@@ -1,4 +1,4 @@
-package com.nico.gpxdenivele
+package com.nico.gpx2elev
 
 import android.app.Application
 import android.content.Context
@@ -8,8 +8,8 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.nico.gpxdenivele.core.*
-import com.nico.gpxdenivele.data.*
+import com.nico.gpx2elev.core.*
+import com.nico.gpx2elev.data.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow

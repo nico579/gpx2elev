@@ -1,6 +1,6 @@
-package com.nico.gpxdenivele.data
+package com.nico.gpx2elev.data
 
-import com.nico.gpxdenivele.core.GeoPoint
+import com.nico.gpx2elev.core.GeoPoint
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
