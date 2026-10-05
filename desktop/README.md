@@ -4,6 +4,8 @@ Application Python de bureau, avec des bundles autonomes incluant Python, Qt et 
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/tag/v0.2.2).
 
+La même release contient l'APK Android signé `gpx2elev-0.1.apk`, son rapport `verification-android.json` et sa somme SHA-256. La version Android reste 0.1 ; les bundles Python portent la version 0.2.2.
+
 ## Ouvrir l'application
 
 - **Windows 10/11, x64** : décompresser `gpx2elev-0.2.2-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.

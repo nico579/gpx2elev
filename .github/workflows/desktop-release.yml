@@ -1,4 +1,4 @@
-name: Desktop bundles
+name: Android APK and desktop bundles
 
 on:
   push:
@@ -74,6 +74,10 @@ jobs:
         with:
           path: release-assets
           merge-multiple: true
+      - name: Include signed Android APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 desktop/tools/include_android_apk.py release-assets
       - name: Publish verified bundles
         env:
           GH_TOKEN: ${{ github.token }}
@@ -83,6 +87,6 @@ jobs:
           cd release-assets
           sha256sum -c SHA256SUMS.txt
           cd ..
-          gh release create "$RELEASE_TAG" --verify-tag --title "gpx2elev $RELEASE_TAG — Windows, Linux et macOS" --notes-file desktop/RELEASE_NOTES.md --draft
+          gh release create "$RELEASE_TAG" --verify-tag --title "gpx2elev $RELEASE_TAG — Android, Windows, Linux et macOS" --notes-file desktop/RELEASE_NOTES.md --draft
           gh release upload "$RELEASE_TAG" release-assets/*
           gh release edit "$RELEASE_TAG" --draft=false --latest

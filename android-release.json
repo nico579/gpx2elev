@@ -1,0 +1,9 @@
+{
+  "repository": "nico579/gpx2elev",
+  "tag": "v0.1",
+  "version": "0.1",
+  "apk": "gpx2elev-0.1.apk",
+  "sha256": "424b1667c7df13e678e67d9d3b8c1cdefc693ed8413fe2413597da4352ddefa6",
+  "verification": "verification.json",
+  "verification_sha256": "22440fc2b59db7d9e1709ea8349fc695baaec0e66d33c756d4c3e4d0cdcc0787"
+}
