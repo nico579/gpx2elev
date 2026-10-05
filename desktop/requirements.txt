@@ -1,0 +1,6 @@
+PySide6-Essentials==6.11.2
+numpy==1.26.4
+Pillow==11.3.0
+requests==2.34.2
+rasterio==1.4.3
+defusedxml==0.7.1

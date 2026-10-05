@@ -1,8 +1,10 @@
 # gpx2elev
 
+**Version Python de bureau : [Windows, Linux et macOS](desktop/README.md)**, avec bundles autonomes, même calcul et mêmes sources. [Télécharger la release desktop](https://github.com/nico579/gpx2elev/releases/tag/v0.2.0).
+
 Application Android personnelle, en Kotlin et Jetpack Compose, construite avec le même socle qu'OBD2 Dash. Son identifiant est `com.nico.gpxdenivele` : elle s'installe à côté d'OBD2 Dash.
 
-[Télécharger l'APK de la dernière release](https://github.com/nico579/gpx2elev/releases/latest).
+[Télécharger l'APK Android](https://github.com/nico579/gpx2elev/releases/tag/v0.1).
 
 ## Utilisation
 

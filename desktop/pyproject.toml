@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpx2elev"
+version = "0.2.0"
+description = "Dénivelé GPX, MNT et protocole spatial 5 m / 20 m / 2 m"
+requires-python = ">=3.12,<3.13"
+dynamic = ["dependencies"]
+
+[project.gui-scripts]
+gpx2elev = "gpx2elev.__main__:main"
+
+[tool.setuptools]
+packages = ["gpx2elev"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+[tool.setuptools.package-data]
+gpx2elev = ["assets/*"]

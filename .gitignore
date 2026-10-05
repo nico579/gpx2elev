@@ -13,3 +13,10 @@ app/src/test/resources/reference.gpx
 app/src/test/resources/reference.csv
 app/src/test/resources/reference_expected.json
 app/src/test/resources/live_expected.csv
+# Python desktop and native bundles.
+desktop/.venv/
+desktop/dist/
+desktop/release/
+desktop/qa/
+**/__pycache__/
+*.egg-info/

@@ -1,0 +1,88 @@
+name: Desktop bundles
+
+on:
+  push:
+    tags: ['v0.2.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            artifact: windows-x64
+          - runner: ubuntu-22.04
+            artifact: linux-x64
+          - runner: macos-15-intel
+            artifact: macos-x64
+          - runner: macos-14
+            artifact: macos-arm64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: '1'
+      QT_QPA_PLATFORM: offscreen
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: 'desktop/requirements*.txt'
+      - name: Linux display libraries
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libegl1 libgl1 libxkbcommon-x11-0 libxcb-cursor0 libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-xinerama0 libxcb-xkb1 xvfb
+      - name: Install dependencies
+        run: python -m pip install -r requirements-build.txt
+      - name: Test core, models and GUI
+        run: python -m unittest discover -s tests -v
+      - name: Build and verify native executable
+        run: python tools/build_bundle.py
+      - name: Test Linux executable with X11
+        if: runner.os == 'Linux'
+        run: xvfb-run -a env QT_QPA_PLATFORM=xcb dist/gpx2elev/gpx2elev --self-test-report release/verification-linux-x11.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: desktop/release/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Publish verified bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          cat release-assets/SHA256SUMS-*.txt > release-assets/SHA256SUMS.txt
+          cd release-assets
+          sha256sum -c SHA256SUMS.txt
+          cd ..
+          gh release create "$RELEASE_TAG" --verify-tag --title "gpx2elev $RELEASE_TAG — Windows, Linux et macOS" --notes-file desktop/RELEASE_NOTES.md --draft
+          gh release upload "$RELEASE_TAG" release-assets/*
+          gh release edit "$RELEASE_TAG" --draft=false --latest
