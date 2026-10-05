@@ -24,8 +24,12 @@ def main():
                  (manifest["verification"], manifest["verification_sha256"], "verification-android.json")]
         for name, expected, output in paths:
             path = Path(temporary) / name
+            # The release job may use Ubuntu's Python 3.10, unlike app builds.
+            digest = hashlib.sha256()
             with path.open("rb") as stream:
-                actual = hashlib.file_digest(stream, "sha256").hexdigest()
+                for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+                    digest.update(chunk)
+            actual = digest.hexdigest()
             if actual != expected:
                 raise ValueError(f"SHA-256 incorrect pour {name}.")
             shutil.copy2(path, args.directory / output)
