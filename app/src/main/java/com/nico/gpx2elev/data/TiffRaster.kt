@@ -2,10 +2,17 @@ package com.nico.gpx2elev.data
 
 import com.nico.gpx2elev.core.GeoPoint
 import java.io.ByteArrayInputStream
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.InflaterInputStream
 import kotlin.math.*
+
+class UnsupportedRasterFormat(message: String) : IOException(message)
+
+private fun supported(condition: Boolean, message: String) {
+    if (!condition) throw UnsupportedRasterFormat(message)
+}
 
 /** Shared decoded-block LRU: no complete 3600×3600 raster is kept in RAM. */
 class RasterBlocks(private val maximumBytes: Int = 16 * 1024 * 1024) {
@@ -20,6 +27,13 @@ class RasterBlocks(private val maximumBytes: Int = 16 * 1024 * 1024) {
         }
         items[key] = data; bytes += data.size * 4
         return data
+    }
+    fun invalidate(raster: String) {
+        val iterator = items.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key.startsWith("$raster/")) { bytes -= entry.value.size * 4; iterator.remove() }
+        }
     }
 }
 
@@ -53,7 +67,9 @@ class TiffRaster(private val source: ByteSource, private val key: String, privat
             else -> error("En-tête GeoTIFF invalide.")
         }
         val hb = buffer(header)
-        require((hb.getShort(2).toInt() and 65535) == 42) { "Format GeoTIFF non pris en charge." }
+        val magic = hb.getShort(2).toInt() and 65535
+        supported(magic != 43, "Format GeoTIFF non pris en charge.") // BigTIFF is valid, but unsupported.
+        require(magic == 42) { "En-tête GeoTIFF invalide." }
         val offset = hb.getInt(4).toLong() and 0xffffffffL
         val count = buffer(source.read(offset, 2)).short.toInt() and 65535
         require(count in 1..512)
@@ -69,14 +85,16 @@ class TiffRaster(private val source: ByteSource, private val key: String, privat
         }
         width = ints(256).first().toInt(); height = ints(257).first().toInt()
         require(width in 1..10000 && height in 1..10000)
-        require(ints(258).contentEquals(longArrayOf(32)) && ints(339).contentEquals(longArrayOf(3))) { "Raster attendu en float32." }
-        require((tags[277]?.let { ints(277).first() } ?: 1L) == 1L) { "Raster attendu à une bande." }
-        require((tags[274]?.let { ints(274).first() } ?: 1L) == 1L) { "Orientation raster inattendue." }
+        supported(ints(258).contentEquals(longArrayOf(32)) && ints(339).contentEquals(longArrayOf(3)), "Raster attendu en float32.")
+        supported((tags[277]?.let { ints(277).first() } ?: 1L) == 1L, "Raster attendu à une bande.")
+        supported((tags[274]?.let { ints(274).first() } ?: 1L) == 1L, "Orientation raster inattendue.")
+        supported(322 in tags || 273 !in tags, "Raster tuilé requis.")
+        require(322 in tags && 323 in tags && 324 in tags && 325 in tags) { "Structure GeoTIFF incomplète." }
         tileWidth = ints(322).first().toInt(); tileHeight = ints(323).first().toInt()
         require(tileWidth in 1..2048 && tileHeight in 1..2048)
         predictor = tags[317]?.let { ints(317).first().toInt() } ?: 1
         compression = ints(259).first().toInt()
-        require(predictor in 1..3 && compression in listOf(1, 8, 32946)) { "Compression raster inattendue." }
+        supported(predictor in 1..3 && compression in listOf(1, 8, 32946), "Compression raster inattendue.")
         offsets = ints(324); lengths = ints(325)
         val tileCount = ((width + tileWidth - 1) / tileWidth) * ((height + tileHeight - 1) / tileHeight)
         require(offsets.size == tileCount && lengths.size == tileCount)
@@ -87,7 +105,7 @@ class TiffRaster(private val source: ByteSource, private val key: String, privat
         val geo = ints(34735)
         require(geo.size >= 4 && geo.size == 4 + geo[3].toInt() * 4)
         fun geoValue(id: Long): Long? = (4 until geo.size step 4).firstOrNull { geo[it] == id && geo[it + 1] == 0L }?.let { geo[it + 3] }
-        require(geoValue(2048) == 4326L) { "Projection raster différente de WGS84." }
+        supported(geoValue(2048) == 4326L, "Projection raster différente de WGS84.")
         pixelOffset = if (geoValue(1025) == 2L) 0.0 else .5
         noData = tags[42113]?.let { String(bytes(42113), Charsets.US_ASCII).trimEnd('\u0000').toDoubleOrNull() }
     }

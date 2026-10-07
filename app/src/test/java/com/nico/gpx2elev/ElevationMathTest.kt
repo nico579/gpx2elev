@@ -1,6 +1,8 @@
 package com.nico.gpx2elev
 
 import com.nico.gpx2elev.core.*
+import com.nico.gpx2elev.ui.profileChartData
+import com.nico.gpx2elev.ui.fullProfileViewport
 import org.junit.Assert.*
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -9,6 +11,39 @@ import kotlin.math.abs
 
 class ElevationMathTest {
     private fun parse(xml: String) = GpxParser.parse(ByteArrayInputStream(xml.toByteArray(Charsets.UTF_8)))
+
+    @Test fun overflowingGpxInterpolationDoesNotDiscardValidTerrain() {
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(
+            TrackPoint(GeoPoint(45.0, 5.0), -1e308), TrackPoint(GeoPoint(45.001, 5.0), 1e308),
+        ))))
+        assertNull(prepared.segments.single().gpxElevation)
+        val result = ElevationMath.compute(prepared, DoubleArray(prepared.sampleCount) { 100.0 })
+        assertNull(result.gpxRaw); assertNull(result.gpxFiltered)
+        assertEquals(0.0, result.gain.up, 1e-9); assertEquals(0.0, result.gain.down, 1e-9)
+        assertTrue(result.profiles.single().elevation.all { abs(it - 100.0) < 1e-9 })
+        val chart = profileChartData(prepared, result.profiles)
+        assertTrue(chart.gpx.isEmpty())
+        val viewport = fullProfileViewport(chart, prepared.length)
+        assertTrue(viewport.minAltitude.isFinite() && viewport.maxAltitude.isFinite() && viewport.altitudeSpan.isFinite())
+    }
+
+    @Test fun overflowingNativeTotalsAndGaussianRemainOptionalComparisons() {
+        val native = doubleArrayOf(-8e307, 0.0, 8e307, 0.0, -8e307, 0.0, 8e307)
+        val track = Track(listOf(native.mapIndexed { i, z -> TrackPoint(GeoPoint(45.0 + i * .001, 5.0), z) }))
+        val prepared = ElevationMath.prepare(track)
+        val result = ElevationMath.compute(prepared, DoubleArray(prepared.sampleCount) { 100.0 })
+        assertNull(result.gpxRaw); assertNull(result.gpxFiltered)
+        assertEquals(100.0, result.minAltitude, 1e-9); assertEquals(100.0, result.maxAltitude, 1e-9)
+        val constant = ElevationMath.prepare(Track(listOf(track.segments.single().take(2).map { it.copy(elevation = 1e308) })))
+        val constantResult = ElevationMath.compute(constant, DoubleArray(constant.sampleCount) { 100.0 })
+        assertEquals(Gain(0.0, 0.0), constantResult.gpxRaw)
+        assertNull(constantResult.gpxFiltered)
+        // Centering the visible range must not overflow for a finite, very low GPX observation.
+        val lowTrack = ElevationMath.prepare(Track(listOf(track.segments.single().take(2).map { it.copy(elevation = -Double.MAX_VALUE) })))
+        val lowChart = profileChartData(lowTrack, result.profiles)
+        val viewport = fullProfileViewport(lowChart, lowTrack.length)
+        assertTrue(viewport.minAltitude.isFinite() && viewport.maxAltitude.isFinite() && viewport.altitudeSpan.isFinite())
+    }
 
     @Test fun matchesAuditedPythonOnOctober4Trace() {
         assumeTrue("Banc d'essai personnel local", javaClass.getResource("/reference.gpx") != null && javaClass.getResource("/reference.csv") != null)

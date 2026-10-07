@@ -102,7 +102,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val result = withContext(Dispatchers.IO) { storageLock.withLock {
                     val app = getApplication<Application>()
-                    if (uri != null) {
+                    val prepared = if (uri != null) {
                         val temporary = File.createTempFile("import-", ".gpx.part", base)
                         try {
                             app.contentResolver.openInputStream(uri)?.use { input ->
@@ -120,16 +120,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                                     output.fd.sync()
                                 }
                             } ?: error("Impossible d'ouvrir ce fichier GPX.")
-                            // Parse before replacing the last valid selection.
-                            temporary.inputStream().use { GpxParser.parse(it) }
+                            // Validate usable positions and the sampling limit before replacing the saved track.
+                            val imported = temporary.inputStream().use { ElevationMath.prepare(GpxParser.parse(it)) }
                             ensureActive()
                             Files.move(temporary.toPath(), lastTrack.toPath(), StandardCopyOption.REPLACE_EXISTING)
                             prefs.edit().putString("name", name).apply()
+                            imported
                         } finally { temporary.delete() }
-                    }
+                    } else lastTrack.inputStream().use { ElevationMath.prepare(GpxParser.parse(it)) }
                     ensureActive()
-                    val track = lastTrack.inputStream().use { GpxParser.parse(it) }
-                    val prepared = ElevationMath.prepare(track)
                     val cm = app.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
                     val online = cm.activeNetwork?.let { cm.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } == true
                     val reader = PublicModels(File(base, "tiles"), http)

@@ -1,9 +1,11 @@
 import csv
+import errno
 import io
 from pathlib import Path
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 import zipfile
 
 import numpy as np
@@ -45,6 +47,21 @@ class MemoryHttp:
 
 
 class ProviderTests(unittest.TestCase):
+    def test_profile_cache_failure_preserves_valid_model_without_fallback(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Repository(directory, reader=Reader())
+            points = np.array([[45., 5.], [45.001, 5.]])
+            with patch.object(repo.reader, "read", return_value=np.full(len(points), 123.0)) as read, \
+                    patch.object(repo.cache, "save", side_effect=OSError(errno.ENOSPC, "disk full")):
+                result = repo.obtain(points)
+            read.assert_called_once()
+            self.assertEqual(result.source, Source.IGN)
+            np.testing.assert_array_equal(result.values, [123, 123])
+            self.assertFalse(result.from_cache)
+            self.assertEqual(result.fallbacks, [])
+            self.assertIn("disk full", result.cache_warning)
+            repo.close()
+
     def test_fallback_uses_one_complete_model_and_caches_it(self):
         with tempfile.TemporaryDirectory() as directory:
             reader = Reader()
@@ -53,6 +70,7 @@ class ProviderTests(unittest.TestCase):
             first = repo.obtain(points)
             self.assertEqual(reader.calls, [Source.IGN, Source.MAPTERHORN])
             self.assertEqual(first.source, Source.MAPTERHORN)
+            self.assertIsNone(first.cache_warning)
             self.assertEqual(len(first.fallbacks), 1)
             second = repo.obtain(points, online=False)
             self.assertTrue(second.from_cache)

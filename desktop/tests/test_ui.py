@@ -22,6 +22,67 @@ from gpx2elev.service import Result, calculate
 
 
 class UiTests(unittest.TestCase):
+    def test_overflowing_gpx_display_range_keeps_terrain_chart_usable(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        prepared = prepare(Track([Segment(np.array([[45.0, 5.0], [45.001, 5.0]]), np.array([-1e308, 1e308]))]))
+        values = np.full(prepared.sample_count, 100.0)
+        result = Result('extreme.gpx', prepared, Series(Source.IGN, values, True, []), compute(prepared, values))
+        with tempfile.TemporaryDirectory() as directory:
+            window = MainWindow(directory, restore=False)
+            window.show_result(result)
+            window.show()
+            app.processEvents()
+            self.assertEqual(window.chart.gpx_profiles, [])
+            self.assertTrue(np.isfinite(window.chart.bounds).all())
+            window.chart.zoom(2)
+            self.assertTrue(np.isfinite(window.chart.view).all())
+            self.assertFalse(window.chart.grab().isNull())
+            window.close()
+
+    def test_fullscreen_chart_restores_same_zoom_language_and_widget(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'test.gpx'
+            path.write_bytes(SYNTHETIC_GPX)
+            prepared = prepare(parse_gpx(path))
+            values = 100 + .1 * prepared.segments[0].distance
+            result = Result(path.name, prepared, Series(Source.IGN, values, False, [], cache_warning='disk full'),
+                            compute(prepared, values))
+            window = MainWindow(root, restore=False)
+            window.language_picker.setCurrentIndex(0)
+            self.assertFalse(window.fullscreen_button.isEnabled())
+            window.show_result(result)
+            window.show()
+            app.processEvents()
+            chart = window.chart
+            height = chart.height()
+            chart.zoom(2)
+            view = chart.view
+            QTest.mouseClick(window.fullscreen_button, Qt.MouseButton.LeftButton)
+            app.processEvents()
+            self.assertTrue(window.chart_fullscreen.isFullScreen())
+            self.assertIs(window.chart, chart)
+            self.assertEqual(chart.view, view)
+            self.assertGreater(chart.height(), height)
+            window.language_picker.setCurrentIndex(1)
+            self.assertEqual(window.fullscreen_exit.text(), 'Exit full screen')
+            self.assertIn('offline use cannot be guaranteed', window.details.toPlainText())
+            QTest.mouseClick(window.fullscreen_zoom_in, Qt.MouseButton.LeftButton)
+            zoomed = chart.view
+            QTest.mouseClick(window.fullscreen_exit, Qt.MouseButton.LeftButton)
+            app.processEvents()
+            self.assertIsNone(window.chart_fullscreen)
+            self.assertIs(chart.parentWidget(), window.centralWidget())
+            self.assertEqual(chart.view, zoomed)
+            self.assertTrue(chart.isVisible())
+            window.open_chart_fullscreen()
+            QTest.keyClick(window.chart_fullscreen, Qt.Key.Key_Escape)
+            app.processEvents()
+            self.assertIsNone(window.chart_fullscreen)
+            self.assertEqual(chart.view, zoomed)
+            window.close()
+
     def test_native_gpx_overlay_gaps_stops_segments_and_common_scale(self):
         app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
         first = Segment(np.array([[45, 5], [45, 5], [45.001, 5], [45.002, 5], [45.003, 5]]),

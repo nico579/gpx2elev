@@ -4,11 +4,32 @@
 
 Audit des applications Android et bureau : lecture GPX, calcul numérique, lecteurs de terrain, réseau, caches, interface et exports. Les scripts exploratoires du dossier parent ne font pas partie de cette application et ne sont pas inclus dans cet audit.
 
-La superposition demandée est réalisée : terrain lissé en vert, observations originales du GPX en orange pointillé, échelle commune, conservation des arrêts et des mesures isolées, interruption aux altitudes absentes et entre segments. Le graphique permet le zoom sur les deux axes, le déplacement et le retour à la vue complète. La sélection des points est recalculée dans la fenêtre visible pour retrouver les détails au zoom.
+La superposition demandée est réalisée : terrain lissé en vert, observations originales du GPX en orange pointillé, échelle commune, conservation des arrêts et des mesures isolées, interruption aux altitudes absentes et entre segments. Le graphique permet le zoom sur les deux axes, le déplacement et le retour à la vue complète. Le mode **Plein écran** agrandit le graphique sur les deux plateformes ; le retour conserve zoom et position. Les commandes Android sont compactées en paysage. La sélection des points est recalculée dans la fenêtre visible pour retrouver les détails au zoom.
 
-Les constats ci-dessous concernent le code existant et restent à corriger. Ils sont séparés des changements du graphique. Les défauts ont été reproduits hors ligne ou établis par une reproduction du cas numérique et l'ordre des opérations dans le code ; aucune fréquence de survenue en production n'est supposée.
+Les constats détaillés ci-dessous documentent la version **0.3.3** initialement auditée ; les numéros de ligne de cette section se rapportent à cette version. Les correctifs B1–B8 sont maintenant implémentés et accompagnés de tests de régression. Les optimisations proposées restent distinctes de ces corrections. Aucune fréquence de survenue en production n'est supposée.
 
-## Défauts confirmés
+## Correctifs implémentés
+
+| Réf. | Correction | Régression |
+| --- | --- | --- |
+| B1 | Chemin XML complet et namespace identique à celui du document ; les extensions et parents étrangers sont ignorés. | `GpxParserRegressionTest` : collisions, namespaces, routes et segments. |
+| B2 | Début, fin, taille totale et corps HTTP vérifiés avant utilisation ; anciennes tranches non vérifiées ignorées. | `HttpRangeRegressionTest` : vrais échanges HTTP locaux incohérents, suffixes et streaming. |
+| B3 | Dernière page bornée par la taille du fichier ; une lecture réellement hors limites reste rejetée. | Même suite : fixture Copernicus et GeoTIFF valide de 938 octets. |
+| B4 | Validation avant publication du WebP/GeoTIFF, invalidation ciblée et récupération unique, y compris les blocs compressés ; format non pris en charge préservé. | `RepositoryRegressionTest` : fichiers corrompus, téléchargements invalides et encodage non pris en charge. |
+| B5 | Préparation complète du parcours avant remplacement de `last.gpx`, puis réutilisation de la préparation. | `ImportValidationTest` : erreurs de XML, parcours stationnaire ou trop long, et import valide. |
+| B6 | Erreur de sauvegarde séparée de la lecture terrain ; profil valide conservé et avertissement FR/EN sur le hors connexion. | Dépôts Android/Python et interfaces ; cache rendu non inscriptible. |
+| B7 | Nettoyage entourant toute l'écriture ; élagage des `.part` vieux de 24 h en préservant les écritures actives et récentes. | `test_cache.py` : disque plein, ancien temporaire et écriture active. |
+| B8 | Comparaison GPX non exploitable rendue indisponible ; bornes graphiques finies conservées sans annuler le terrain valide. | Calcul numérique Android/Python et graphique bureau. |
+
+Les clés de profils Android FABDEM et Copernicus sont renouvelées pour ne pas réutiliser un profil issu des anciennes tranches non vérifiées. Le premier recalcul de ces profils peut donc nécessiter Internet. Le protocole nominal, les coordonnées et les résultats de référence restent inchangés.
+
+Le plein écran est couvert par les tests d'interface : agrandissement, zoom conservé au retour, basculement FR/EN, Échap sur ordinateur et affichage Android en portrait/paysage.
+
+Le **menu ⋮ → Mises à jour** Android et le bouton **Mises à jour** bureau vérifient manuellement la release stable officielle. Les téléchargements sont bornés, limités aux endpoints HTTPS GitHub et validés par SHA-256. Android vérifie aussi l'identifiant, la version et le certificat de l'APK avant de demander l'autorisation système et d'ouvrir l'installateur. Un nouveau contrôle ne chevauche pas un contrôle en cours d'annulation ; rouvrir le menu actualise la release disponible.
+
+Sur les bundles bureau, l'extraction contrôle les chemins et les liens, puis le programme téléchargé passe son contrôle hors connexion. Un auxiliaire indépendant attend la fermeture de l'application avant le remplacement et redémarre le programme ; une erreur restaure l'ancienne installation. L'environnement et la recherche des bibliothèques sont réinitialisés entre les versions. Les données restent hors du dossier remplacé. Le lancement depuis les sources fournit un bundle vérifié à ouvrir manuellement. La version 0.3.4 regroupe ces changements ; les anciennes applications demandent une première installation manuelle pour disposer du bouton.
+
+## Défauts confirmés dans la version 0.3.3
 
 | Réf. | Priorité | Plateforme | Conséquence |
 | --- | --- | --- | --- |
@@ -133,25 +154,25 @@ Les gains des propositions 2–5 n'ont pas été mesurés. Les valider avec des 
 
 - **Lecteurs Android ouverts sans plafond.** Les collections `rasters` et `opened` de [ElevationRepository.kt](app/src/main/java/com/nico/gpx2elev/data/ElevationRepository.kt) conservent tous les lecteurs TIFF/HGT jusqu'à la fin du calcul. Un LRU avec fermeture à l'éviction limiterait les descripteurs sur les traces qui traversent beaucoup de tuiles. Aucun épuisement de descripteurs n'a été reproduit.
 - **Mémoire des rasters bureau.** [providers.py](desktop/gpx2elev/providers.py) lit les rasters entiers et conserve deux rasters avec des copies temporaires. Une lecture par blocs ou fenêtres limiterait la mémoire ; mesurer le pic avant de modifier l'interpolation aux frontières.
-- **Fraîcheur des caches de tuiles Android.** Les chemins Mapterhorn et FABDEM réutilisés n'actualisent pas leur date d'usage, alors que l'élagage trie sur cette date. Actualiser cette date évite d'évincer des tuiles récemment utilisées simplement parce qu'elles ont été téléchargées il y a longtemps.
+- **Fraîcheur des caches de tuiles Android.** Corrigé avec B4 : les tuiles Mapterhorn et FABDEM réutilisées actualisent leur date d'usage, utilisée par l'élagage.
 - **Intégrité des tranches distantes Android.** La clé de cache utilise URL, position et longueur, sans checksum ni version HTTP. La taille seule ne détecte pas une corruption conservant le nombre d'octets ; un changement du fichier distant peut également mélanger des versions. Ce sont des risques déduits du code, pas des incidents observés sur les services publics.
 
-## Validation et preuves
+## Validation locale et preuves
 
-- Suite bureau : **26 tests**, **25 réussis et 1 ignoré** ; le test ignoré nécessite la création de liens symboliques, non autorisée sur ce Windows. Les nouveaux contrôles couvrent mesures originales, arrêts, coupures, segments, échelle commune, molette, déplacement, retour à la vue complète et détail après zoom.
-- Kotlin : **13 tests purs réussis** pour `ProfileChartDataTest` et `ElevationMathTest`, exécutés avec Kotlin 1.9.24 et JUnit depuis les dépendances locales.
-- Toutes les sources Android actuelles, avec le plugin Compose 1.5.14, ainsi que `AndroidUiTest.kt`, ont été compilées sans erreur dans un dossier QA séparé. Le script local est [run_chart_kotlin_qa.py](build/qa/run_chart_kotlin_qa.py).
+- Suite bureau : **45 tests**, **43 réussis et 2 ignorés** ; les deux tests ignorés nécessitent la création de liens symboliques, non autorisée sur ce Windows. Les contrôles couvrent les correctifs précédents et les mises à jour : comparaison de versions, sélection de plateforme, intégrité, annulation, extraction, remplacement, retour arrière et dialogue FR/EN.
+- Android : `gradlew.bat testDebugUnitTest lintRelease assembleRelease --no-daemon` **réussi**, avec **79 tests**, **77 réussis, 2 ignorés, 0 erreur**. Le test des services publics est désactivé (`liveReaders=false`) ; le test FileProvider requiert les séparateurs de chemins Android/Linux et est exécuté sur Linux par la CI de release. Les tests locaux couvrent les versions, le transport HTTP réel, les APK corrompus, les signatures API 26/34, l'annulation sans chevauchement et les écrans FR/EN.
+- Lint Debug et Release : **0 erreur**, cinq avertissements `GradleDependency` sur les versions des dépendances existantes. APK Release compilé, réduit et signé avec le certificat attendu ; permission d'installation et provider présents dans le manifeste final. La vérification des nombres de tests de publication est actualisée à 79 tests, au moins 73 exécutés sans les fixtures facultatives.
+- Programme Windows natif construit et contrôlé hors connexion, y compris le dialogue de mise à jour en français et anglais. Dans une copie isolée, l'auxiliaire a attendu un vrai processus parent, remplacé l'application, redémarré le nouvel exécutable et préservé le GPX et les réglages, avec des chemins contenant des espaces. Annuler pendant la vérification native conserve l'application initiale et nettoie la préparation.
+- Contrôle réel de la release Windows publique 0.3.3 : lecture de l'API officielle, téléchargement, SHA-256, extraction et vérification native réussis. Aucune installation utilisateur n'a été modifiée. Le remplacement natif n'a pas été exécuté sur Linux/macOS ni sur un téléphone physique dans cet environnement.
 - Vérification du rendu bureau sur la trace personnelle de référence : 1 500 points originaux, 4 467 positions terrain ; **D+ 735,128566 m**, **D− 735,149565 m**. Les courbes sont superposées et la navigation ne modifie pas ces résultats.
-- Les tentatives Gradle sont bloquées par l'environnement : téléchargement refusé, puis chargement des composants natifs / résolution du cache. Les tests UI Robolectric ajoutés ont été compilés, mais n'ont pas été exécutés ; aucun téléphone physique n'a été testé.
-- Preuves locales, conservées dans le dossier ignoré `build/qa` : [audit_core.py](build/qa/audit_core.py), [AuditCore.java](build/qa/AuditCore.java), [ReaderAuditReplay.java](build/qa/ReaderAuditReplay.java), [desktop_reader_audit.py](build/qa/desktop_reader_audit.py), [résultats des lecteurs bureau](build/qa/desktop-reader-audit.json).
+- Les restrictions qui empêchaient initialement Gradle ont été levées et les tests Android complets ont maintenant été exécutés. Aucun téléphone physique n'a été testé. La CI de release reconstruit et vérifie l'APK et les quatre bundles natifs pour le tag v0.3.4 avant publication.
+- Preuves exploratoires de l'audit initial, conservées dans le dossier ignoré `build/qa` : [audit_core.py](build/qa/audit_core.py), [AuditCore.java](build/qa/AuditCore.java), [ReaderAuditReplay.java](build/qa/ReaderAuditReplay.java), [desktop_reader_audit.py](build/qa/desktop_reader_audit.py), [résultats des lecteurs bureau](build/qa/desktop-reader-audit.json). Les régressions des correctifs sont dans les suites de tests versionnées.
 - Aperçus bureau : [vue complète](build/qa/profil-superpose-bureau.png), [vue zoomée](build/qa/profil-superpose-bureau-zoom.png).
+- Aperçus du nouveau mode : [plein écran](build/qa/profil-plein-ecran-bureau.png), [retour conservant le zoom](build/qa/profil-retour-plein-ecran-bureau.png), produits par [preview_fullscreen.py](build/qa/preview_fullscreen.py).
+- Preuves de mise à jour : [rapport Windows](build/qa/native-updater-verification.json), [dialogue FR](build/qa/verification-windows-updater.updates.fr.png), [dialogue EN](build/qa/verification-windows-updater.updates.en.png), [contrôle du bundle](build/qa/verification-windows-updater.json).
 
 Aucun défaut supplémentaire n'a été confirmé dans le calcul nominal des arrêts, des segments séparés, de l'antiméridien ou du lissage de la référence. Cela ne constitue pas une preuve d'absence de tous les bugs.
 
-## Ordre de correction recommandé
+## Suite proposée
 
-1. Namespace du parseur et validation avant sauvegarde (B1, B5).
-2. Validation des plages, dernière page et récupération des tuiles (B2–B4).
-3. Séparer résultat et cache, puis garantir le nettoyage des temporaires (B6, B7).
-4. Export asynchrone et traductions précompilées.
-5. Robustesse des valeurs extrêmes (B8), puis optimisations numériques et mémoire mesurées.
+Les correctifs B1–B8 sont validés. Les travaux suivants restent les optimisations proposées : export CSV asynchrone, traductions précompilées, lecture XML progressive, puis interpolation et mémoire des rasters après mesure des gains. Ils ne sont pas inclus dans cette série de corrections.

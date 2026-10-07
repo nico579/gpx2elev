@@ -10,6 +10,7 @@ import re
 import struct
 import tempfile
 import threading
+import time
 import zipfile
 
 import numpy as np
@@ -51,18 +52,35 @@ class Series:
     values: np.ndarray
     from_cache: bool
     fallbacks: list[tuple[Source, str]]
+    cache_warning: str | None = None
+
+
+_ACTIVE_WRITES = set()
+_WRITE_LOCK = threading.Lock()
+_PART_MAX_AGE_SECONDS = 24 * 60 * 60
 
 
 def atomic_write(path, data):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(dir=path.parent, suffix=".part", delete=False) as stream:
-        temp = Path(stream.name)
-        stream.write(data)
+    temp = None
     try:
+        # Registration and cleanup share the lock with trimming: an active write,
+        # including one older than the grace period, must never be deleted.
+        with _WRITE_LOCK:
+            stream = tempfile.NamedTemporaryFile(dir=path.parent, suffix=".part", delete=False)
+            temp = Path(stream.name).resolve()
+            _ACTIVE_WRITES.add(temp)
+        with stream:
+            stream.write(data)
         temp.replace(path)
     finally:
-        temp.unlink(missing_ok=True)
+        if temp is not None:
+            with _WRITE_LOCK:
+                try:
+                    temp.unlink(missing_ok=True)
+                finally:
+                    _ACTIVE_WRITES.discard(temp)
 
 
 def valid(values):
@@ -110,8 +128,14 @@ def trim_cache(directory, limit):
     files = []
     for p in directory.glob("*"):
         try:
-            if p.is_file() and not p.is_symlink() and p.suffix != ".part":
-                files.append((p.stat().st_mtime, p.stat().st_size, p))
+            if p.is_file() and not p.is_symlink():
+                with _WRITE_LOCK:
+                    stat = p.stat()
+                    if p.suffix == ".part":
+                        if p.resolve() not in _ACTIVE_WRITES and stat.st_mtime < time.time() - _PART_MAX_AGE_SECONDS:
+                            p.unlink(missing_ok=True)
+                    else:
+                        files.append((stat.st_mtime, stat.st_size, p))
         except OSError:
             continue
     size = sum(f[1] for f in files)
@@ -514,12 +538,16 @@ class Repository:
                 self.http.check()
                 if values.shape != (len(coordinates),) or not valid(values):
                     raise MissingCoverage("Le modèle ne couvre pas toutes les positions de la trace.")
-                self.cache.save(candidate, coordinates, values)
-                return Series(candidate, values, False, failures)
             except Cancelled:
                 raise
             except Exception as exc:
                 failures.append((candidate, str(exc)[:240]))
+                continue
+            try:
+                self.cache.save(candidate, coordinates, values)
+            except OSError as exc:
+                return Series(candidate, values, False, failures, str(exc)[:240])
+            return Series(candidate, values, False, failures)
         if not online:
             raise MissingCoverage("Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul.")
         raise MissingCoverage("Aucun modèle n'a fourni un profil complet.\n" + "\n".join(f"{s.label} : {reason}" for s, reason in failures))

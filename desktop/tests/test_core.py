@@ -14,6 +14,30 @@ RESOURCES = Path(__file__).resolve().parents[2] / "app/src/test/resources"
 
 
 class CoreTests(unittest.TestCase):
+    def test_overflowing_gpx_interpolation_does_not_discard_valid_terrain(self):
+        prepared = prepare(Track([Segment(np.array([[45, 5], [45.001, 5]]), np.array([-1e308, 1e308]))]))
+        self.assertIsNone(prepared.segments[0].gpx_elevations)
+        result = compute(prepared, np.full(prepared.sample_count, 100.0))
+        self.assertIsNone(result.gpx_raw)
+        self.assertIsNone(result.gpx_filtered)
+        self.assertAlmostEqual(result.gain.up, 0.0, places=9)
+        self.assertAlmostEqual(result.gain.down, 0.0, places=9)
+        np.testing.assert_allclose(result.profiles[0].elevations, 100.0, atol=1e-9)
+
+    def test_overflowing_raw_totals_and_gaussian_remain_optional_comparisons(self):
+        coordinates = np.array([[45 + i * .001, 5] for i in range(7)])
+        native = np.array([-8e307, 0, 8e307, 0, -8e307, 0, 8e307])
+        prepared = prepare(Track([Segment(coordinates, native)]))
+        result = compute(prepared, np.full(prepared.sample_count, 100.0))
+        self.assertIsNone(result.gpx_raw)
+        self.assertIsNone(result.gpx_filtered)
+        self.assertAlmostEqual(result.minimum, 100.0, places=9)
+        self.assertAlmostEqual(result.maximum, 100.0, places=9)
+        constant = prepare(Track([Segment(coordinates[:2], np.array([1e308, 1e308]))]))
+        result = compute(constant, np.full(constant.sample_count, 100.0))
+        self.assertEqual(result.gpx_raw, Gain(0.0, 0.0))
+        self.assertIsNone(result.gpx_filtered)
+
     def test_linear_and_constant_including_short_segments(self):
         for length in (1.3, 4.9, 5, 10.1, 79.9, 1003.7):
             x = np.unique(np.r_[np.arange(0, length, 5), length])

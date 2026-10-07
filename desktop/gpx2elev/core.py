@@ -182,7 +182,10 @@ def prepare(track: Track) -> PreparedTrack:
             sampled_lon = (sampled_lon + 180) % 360 - 180
         points = np.column_stack((np.interp(grid, x, xy[:, 0]), sampled_lon))
         gps = segment.elevations[keep]
-        sampled_gps = np.interp(grid, x, gps) if np.isfinite(gps).all() else None
+        with np.errstate(over="ignore", invalid="ignore"):
+            sampled_gps = np.interp(grid, x, gps) if np.isfinite(gps).all() else None
+        if sampled_gps is not None and not np.isfinite(sampled_gps).all():
+            sampled_gps = None
         segments.append(SampledSegment(grid, points, sampled_gps))
         count += len(grid)
     if not segments:
@@ -261,7 +264,8 @@ def anchors(z, threshold=HYSTERESIS):
 
 
 def totals(z):
-    delta = np.diff(np.asarray(z, dtype=float))
+    with np.errstate(over="ignore", invalid="ignore"):
+        delta = np.diff(np.asarray(z, dtype=float))
     if not np.isfinite(delta).all():
         raise ValueError("Altitudes non finies.")
     return Gain(math.fsum(delta[delta > 0]), math.fsum(-delta[delta < 0]))
@@ -273,6 +277,16 @@ def filtered_gain(x, z):
     if abs(gain.up - gain.down - (smoothed[-1] - smoothed[0])) >= 1e-6:
         raise ArithmeticError("Incohérence entre montée, descente et extrémités.")
     return gain, smoothed
+
+
+def _comparison_gain(operation):
+    """An unusable optional GPX comparison must not discard the terrain result."""
+    try:
+        with np.errstate(over="ignore", invalid="ignore"):
+            result = operation()
+        return result if math.isfinite(result.up) and math.isfinite(result.down) else None
+    except (ValueError, ArithmeticError):
+        return None
 
 
 def compute(prepared, elevations):
@@ -290,12 +304,16 @@ def compute(prepared, elevations):
         profiles.append(Profile(segment.distance + distance_offset, smoothed))
         offset += n
         distance_offset += segment.distance[-1]
-        gps = gps + filtered_gain(segment.distance, segment.gpx_elevations)[0] if gps is not None and segment.gpx_elevations is not None else None
+        previous = gps
+        gps = _comparison_gain(lambda: previous + filtered_gain(segment.distance, segment.gpx_elevations)[0]) if previous is not None and segment.gpx_elevations is not None else None
     native = [s for s in prepared.track.segments if len(s.elevations) >= 2]
     raw = Gain(0, 0)
     for segment in native:
         if not np.isfinite(segment.elevations).all():
             raw = None
             break
-        raw += totals(segment.elevations)
+        previous = raw
+        raw = _comparison_gain(lambda: previous + totals(segment.elevations))
+        if raw is None:
+            break
     return Computed(gain, profiles, raw, gps)

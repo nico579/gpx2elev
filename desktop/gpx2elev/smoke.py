@@ -80,6 +80,20 @@ def run_smoke(report_path, fixtures=None):
                 raise AssertionError("Échec du changement de langue ou résultat modifié.")
             app.processEvents()
             window.grab().save(str(report_path.with_suffix(f".{language}.png")))
+            # Exercise lazy updater imports in the frozen executable without accessing the network.
+            from .update_ui import UpdateDialog
+            updates = UpdateDialog(window)
+            if updates.check_button.text() != ("Vérifier à nouveau" if language == "fr" else "Check again"):
+                raise AssertionError("Dialogue de mise à jour non traduit.")
+            updates.status_text = "Vous utilisez la dernière version publiée."
+            updates.progress_bar.hide()
+            updates.retranslate()
+            updates.show()
+            app.processEvents()
+            updates.grab().save(str(report_path.with_suffix(f".updates.{language}.png")))
+            updates.reject()
+            updates.deleteLater()
+            app.processEvents()
         # Verify the libraries and their binary plugins inside the frozen bundle.
         for name in ("copernicus.tif", "fabdem.tif"):
             with rasterio.open(fixtures / name) as dataset:
@@ -102,9 +116,10 @@ def run_smoke(report_path, fixtures=None):
             raise AssertionError("La suppression du cache n'a pas terminé.")
         if sum(window.cache_bytes.values()) != 0 or window.result is not result or not (root / 'last.gpx').exists():
             raise AssertionError("Suppression du cache incorrecte ou trace perdue.")
-        report = {"status": "OK", "frozen": bool(getattr(sys, "frozen", False)),
+        from . import __version__
+        report = {"status": "OK", "version": __version__, "frozen": bool(getattr(sys, "frozen", False)),
                   "platform": sys.platform, "checks": ["ouverture GPX par glisser-déposer", "calcul hors connexion",
-                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
+                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "dialogue de mise à jour EN/FR sans réseau", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
                   "resultat_synthetique": result.summary()}
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()

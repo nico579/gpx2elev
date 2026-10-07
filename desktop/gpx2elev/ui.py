@@ -6,7 +6,7 @@ import threading
 import numpy as np
 from PySide6.QtCore import QEvent, QLocale, QPointF, QRectF, QStandardPaths, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QIcon, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, QFrame,
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame,
     QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
     QPushButton, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
 
@@ -123,6 +123,12 @@ class ProfileChart(QWidget):
         self.minimum = min([result.computed.minimum] + [float(p.elevations.min()) for p in self.gpx_profiles])
         self.maximum = max([result.computed.maximum] + [float(p.elevations.max()) for p in self.gpx_profiles])
         margin = max((self.maximum - self.minimum) * .12, 5)
+        if not np.isfinite([self.maximum - self.minimum, self.minimum - margin, self.maximum + margin,
+                            (self.maximum + margin) - (self.minimum - margin)]).all():
+            # Finite native values may still overflow their combined display range.
+            self.gpx_profiles = []
+            self.minimum, self.maximum = result.computed.minimum, result.computed.maximum
+            margin = max((self.maximum - self.minimum) * .12, 5)
         self.bounds = (0.0, max(result.prepared.length, 1), self.minimum - margin, self.maximum + margin)
         self.reset_view()
 
@@ -235,7 +241,7 @@ class ProfileChart(QWidget):
         return np.column_stack((distance[indices], elevations[indices]))
 
     def number(self, value, decimals=0):
-        return number(value, decimals, self.window().language)
+        return number(value, decimals, self.language_owner.language)
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -243,7 +249,7 @@ class ProfileChart(QWidget):
         painter.fillRect(self.rect(), QColor("white"))
         if self.result is None:
             painter.setPen(QColor("#6b7c88"))
-            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.window().tr("Le profil d’altitude apparaîtra ici"))
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.language_owner.tr("Le profil d’altitude apparaîtra ici"))
             return
         left, right, low, high = self.view
         length = right - left
@@ -258,13 +264,13 @@ class ProfileChart(QWidget):
                                     ("Mesures GPX", "#b86a22", Qt.PenStyle.DashLine)):
             painter.setPen(QPen(QColor(color), 2, style))
             painter.drawLine(QPointF(legend_x, 17), QPointF(legend_x + 22, 17))
-            text = self.window().tr(label)
+            text = self.language_owner.tr(label)
             painter.setPen(QColor("#365e4d"))
             painter.drawText(QPointF(legend_x + 30, 21), text)
             legend_x += 55 + painter.fontMetrics().horizontalAdvance(text)
         if not self.gpx_profiles:
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QPointF(legend_x, 21), self.window().tr("Altitudes GPX manquantes."))
+            painter.drawText(QPointF(legend_x, 21), self.language_owner.tr("Altitudes GPX manquantes."))
         for i in range(5):
             y = chart.top() + chart.height() * i / 4
             painter.setPen(QPen(QColor("#e4ece9"), 1))
@@ -375,6 +381,8 @@ class MainWindow(QMainWindow):
         self.closing = False
         self.pending_path = None
         self.current_path = None
+        self.update_dialog = None
+        self.pending_update = None
         self.setWindowTitle(f"gpx2elev · {__version__}")
         self.setWindowIcon(app_icon())
         self.resize(1000, 820)
@@ -436,6 +444,8 @@ class MainWindow(QMainWindow):
         self.length = self.metric_card(cards, 2, "DISTANCE DU PARCOURS", "— km", "Sur les coordonnées GPX")
         layout.addLayout(cards)
         self.chart = ProfileChart()
+        self.chart.language_owner = self
+        self.chart_fullscreen = None
         layout.addWidget(self.chart, 1)
         self.range_label = LanguageLabel("Profil lissé · pas 5 m · gaussienne σ = 20 m · hystérésis 2 m", objectName="subtitle")
         self.range_label.setWordWrap(True)
@@ -447,7 +457,9 @@ class MainWindow(QMainWindow):
         self.zoom_out_button.clicked.connect(lambda: self.chart.zoom(.5))
         self.reset_view_button = QPushButton("Vue complète")
         self.reset_view_button.clicked.connect(self.chart.reset_view)
-        for button in (self.zoom_in_button, self.zoom_out_button, self.reset_view_button):
+        self.fullscreen_button = QPushButton("Plein écran")
+        self.fullscreen_button.clicked.connect(self.open_chart_fullscreen)
+        for button in (self.zoom_in_button, self.zoom_out_button, self.reset_view_button, self.fullscreen_button):
             chart_controls.addWidget(button)
         layout.addLayout(chart_controls)
         self.chart.view_changed.connect(self.update_chart_controls)
@@ -480,6 +492,9 @@ class MainWindow(QMainWindow):
         cache_row.addWidget(self.cache_label, 1)
         self.clear_cache_button = QPushButton("Vider le cache")
         self.clear_cache_button.clicked.connect(self.confirm_clear_cache)
+        self.updates_button = QPushButton("Mises à jour")
+        self.updates_button.clicked.connect(self.open_updates)
+        cache_row.addWidget(self.updates_button)
         cache_row.addWidget(self.clear_cache_button)
         layout.addLayout(cache_row)
         self.status = LanguageLabel("Prêt", objectName="subtitle")
@@ -518,6 +533,10 @@ class MainWindow(QMainWindow):
         self.models.setAccessibleName(self.tr("Modèle d'altitude"))
         self.chart.setAccessibleName(self.tr("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres"))
         self.chart.setToolTip(self.tr("Molette : zoom · glisser : déplacer · double-clic : vue complète"))
+        if self.chart_fullscreen is not None:
+            self.chart_fullscreen.setWindowTitle(self.tr("Profil d'altitude"))
+        if self.update_dialog is not None:
+            self.update_dialog.retranslate()
         if self.result is not None:
             self.show_result(self.result)
         self.chart.update()
@@ -529,6 +548,51 @@ class MainWindow(QMainWindow):
                                        (self.chart.bounds[1] - self.chart.bounds[0]) / 200 * 1.000001)
         self.zoom_out_button.setEnabled(ready and self.chart.view != self.chart.bounds)
         self.reset_view_button.setEnabled(ready and self.chart.view != self.chart.bounds)
+        self.fullscreen_button.setEnabled(ready)
+        if self.chart_fullscreen is not None:
+            self.fullscreen_zoom_in.setEnabled(self.zoom_in_button.isEnabled())
+            self.fullscreen_zoom_out.setEnabled(self.zoom_out_button.isEnabled())
+            self.fullscreen_reset.setEnabled(self.reset_view_button.isEnabled())
+
+    def open_chart_fullscreen(self):
+        if self.chart.result is None or self.chart_fullscreen is not None:
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(self.tr("Profil d'altitude"))
+        dialog.setModal(True)
+        self.chart_slot = self.centralWidget().layout().indexOf(self.chart)
+        self.chart_fullscreen = dialog
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(20, 16, 20, 16)
+        controls = QHBoxLayout()
+        controls.addStretch()
+        self.fullscreen_zoom_in = QPushButton(self.tr("Zoom +"))
+        self.fullscreen_zoom_out = QPushButton(self.tr("Zoom −"))
+        self.fullscreen_reset = QPushButton(self.tr("Vue complète"))
+        self.fullscreen_exit = QPushButton(self.tr("Quitter le plein écran"))
+        for button, original, callback in (
+            (self.fullscreen_zoom_in, "Zoom +", lambda: self.chart.zoom(2)),
+            (self.fullscreen_zoom_out, "Zoom −", lambda: self.chart.zoom(.5)),
+            (self.fullscreen_reset, "Vue complète", self.chart.reset_view),
+            (self.fullscreen_exit, "Quitter le plein écran", dialog.reject),
+        ):
+            button.setProperty("original_text", original)
+            button.clicked.connect(callback)
+            controls.addWidget(button)
+        layout.addLayout(controls)
+        layout.addWidget(self.chart, 1)
+        dialog.finished.connect(self.restore_chart_from_fullscreen)
+        self.update_chart_controls()
+        dialog.showFullScreen()
+
+    def restore_chart_from_fullscreen(self):
+        dialog, self.chart_fullscreen = self.chart_fullscreen, None
+        if dialog is None:
+            return
+        self.centralWidget().layout().insertWidget(self.chart_slot, self.chart, 1)
+        self.chart.show()
+        dialog.deleteLater()
+        self.update_chart_controls()
 
     def show_cache_size(self):
         def size(value):
@@ -669,9 +733,17 @@ class MainWindow(QMainWindow):
         def gain_text(gain):
             return f"D+ {self.number(gain.up)} m / D− {self.number(gain.down)} m" if gain is not None else "altitudes absentes ou incomplètes"
         self.comparison.setText("Comparaison GPX\nSomme brute des variations : " + gain_text(result.computed.gpx_raw) + "\nGPX rééchantillonné et filtré : " + gain_text(result.computed.gpx_filtered))
+        messages = []
+        if result.series.cache_warning is not None:
+            messages.append("Le profil n'a pas pu être enregistré dans le cache. Le résultat reste disponible, mais son utilisation hors connexion n'est pas assurée.")
         if result.series.fallbacks:
-            self.details.setPlainText("Repli entre modèles :\n" + "\n".join(f"{s.label} : {r}" for s, r in result.series.fallbacks))
+            messages.append("Repli entre modèles :\n" + "\n".join(f"{s.label} : {r}" for s, r in result.series.fallbacks))
+        if messages:
+            self.details.setPlainText("\n\n".join(messages))
             self.details.show()
+        else:
+            self.details.setPlainText("")
+            self.details.hide()
         self.export_button.setEnabled(True)
         self.profile_button.setEnabled(True)
         self.status.setText(f"Calcul terminé · {self.number(result.prepared.track.point_count)} points GPX · {self.number(result.prepared.sample_count)} positions à 5 m")
@@ -753,6 +825,22 @@ class MainWindow(QMainWindow):
             "<a href='https://registry.opendata.aws/copernicus-dem/'>Copernicus : licence DEM</a>. SRTM : NASA/USGS, miroir Kurviger.</p>"
             "<p>Interface Qt/PySide6 sous LGPLv3. Les licences des dépendances sont incluses dans le bundle.</p>"))
 
+    def open_updates(self):
+        if self.update_dialog is not None:
+            self.update_dialog.raise_()
+            return
+        from .update_ui import UpdateDialog
+        dialog = UpdateDialog(self)
+        self.update_dialog = dialog
+        dialog.finished.connect(self.close_updates)
+        dialog.show()
+        dialog.check()
+
+    def close_updates(self):
+        dialog, self.update_dialog = self.update_dialog, None
+        if dialog is not None:
+            dialog.deleteLater()
+
     def dragEnterEvent(self, event):
         if self.worker is None and self.cache_worker is None and event.mimeData().hasUrls() and any(u.isLocalFile() and Path(u.toLocalFile()).suffix.lower() == ".gpx" for u in event.mimeData().urls()):
             event.acceptProposedAction()
@@ -765,6 +853,15 @@ class MainWindow(QMainWindow):
                 break
 
     def closeEvent(self, event):
+        if self.chart_fullscreen is not None:
+            self.chart_fullscreen.reject()
+        if self.update_dialog is not None:
+            self.update_dialog.reject()
+            busy = self.update_dialog is not None and self.update_dialog.worker is not None
+            if busy:
+                self.closing = True
+                event.ignore()
+                return
         if self.worker is not None or self.cache_worker is not None:
             self.closing = True
             self.cancel()

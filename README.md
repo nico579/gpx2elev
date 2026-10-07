@@ -6,11 +6,11 @@
 
 **gpx2elev** estime le dénivelé positif (D+), le dénivelé négatif (D−) et le profil d'altitude d'une trace GPX. L'application Android est développée en Kotlin et Jetpack Compose.
 
-[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.3.3**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
+[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.3.4**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
 
 ## Utilisation
 
-Android 0.3.3 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
+Android 0.3.4 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
 
 Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement la langue et mémorise le choix. Au premier lancement, la langue du système détermine le choix : français pour un système français, anglais sinon. Les nombres suivent la langue choisie ; les calculs et les schémas CSV restent identiques.
 
@@ -23,6 +23,10 @@ Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement 
 Dans une autre application, sélectionner le fichier GPX, toucher **Partager**, puis choisir **gpx2elev**. Le calcul démarre à la réception du fichier. Les variantes GPX, XML, texte et fichier binaire des types MIME sont reconnues ; le contenu reçu doit être un GPX valide. La réception accepte `EXTRA_STREAM`, `ClipData` ou l'URI du fichier. Voir le [mécanisme de partage Android](https://developer.android.com/develop/ui/compose/sharing/receive).
 
 La dernière trace valide est conservée et reprise à la réouverture. Les profils complets sont mis en cache avec contrôle d'intégrité ; un calcul déjà conservé fonctionne hors connexion, tant que son profil reste dans le cache. Le cache des profils est limité à 64 Mo et celui des tuiles à 512 Mo, avec suppression des fichiers les moins récents après un calcul.
+
+**Plein écran** agrandit le graphique ; **Quitter le plein écran** ou le bouton Retour d'Android restaure la vue normale. Le zoom et la position sont conservés. Si l'enregistrement du profil dans le cache échoue, le résultat reste affiché et un message précise que son utilisation hors connexion n'est pas assurée.
+
+**Menu ⋮ → Mises à jour** vérifie manuellement la dernière release stable officielle sur GitHub. La version, la taille du téléchargement et les notes sont affichées avant **Télécharger et installer**. L'APK est contrôlé par SHA-256, identifiant, version et certificat de signature. **Installer** ouvre ensuite l'installateur Android ; si nécessaire, **Autoriser l'installation** ouvre les réglages pour autoriser gpx2elev. Revenez dans l'application après ce réglage. Le téléchargement peut être annulé et l'installation attend la fin d'un calcul. Aucune vérification ne démarre automatiquement. Les versions déjà publiées sans ce menu doivent être remplacées manuellement une première fois.
 
 **Cache des altitudes** affiche la taille totale et le détail profils/tuiles en Mio. **Vider le cache** demande confirmation et supprime les données téléchargées, y compris les fichiers temporaires interrompus. Le GPX, les réglages, les exports et le résultat affiché sont conservés. Les prochains calculs devront télécharger les altitudes à nouveau. Le bouton est désactivé pendant un calcul ou une suppression. Les plafonds de 64 Mio pour les profils et 512 Mio pour les tuiles sont appliqués après les calculs ; un téléchargement peut temporairement les dépasser.
 

@@ -4,7 +4,7 @@
 
 A Python desktop application with standalone bundles containing Python, Qt and elevation readers. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.3**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.4**. GitHub Actions builds all five release assets and verifies them before publication.
 
 ## Open the application
 
@@ -19,6 +19,14 @@ Choose a GPX, drop it into the window or pass its path on the command line. Find
 The first calculation requires Internet access. The screen shows the model, ascent, descent, distance, smoothed profile and raw/filtered GPX totals. CSV exports provide summary results and the full profile. Six exported decimal places help verification; they do not represent physical accuracy to the micrometre.
 
 The chart overlays smoothed terrain (green) and original GPX measurements (dashed orange) on a shared scale. Use the mouse wheel to zoom around the pointer and drag to pan. **Zoom +**, **Zoom −** and **Full view** buttons are also available. Double-click to restore the full view. Segments remain separate and missing elevations interrupt the GPX curve.
+
+**Full screen** expands the chart; **Exit full screen** or **Escape** restores the normal window. Zoom and pan are preserved. A cache write failure keeps the result available and displays a warning about offline use.
+
+## Updates
+
+The **Updates** button at the bottom of the window manually checks GitHub for the latest official stable release and shows its version, size and release notes. **Download and install** selects the bundle for the current Windows, Linux or macOS architecture, verifies its SHA-256 and runs its offline self-check before changing the installation. **Install and restart** closes the application, replaces its folder and launches it again. Data and the last GPX remain in their separate folder; the previous application is retained and restored if replacement or launch fails.
+
+The application folder and its parent must be writable, and data must reside outside the application folder. Keep the extracted folder named `gpx2elev` (`gpx2elev.app` on macOS). When running from Python source or a renamed folder, **Download** and **Open folder** provide a verified bundle for manual installation. Checks never run automatically; Internet access is required after requesting a check. Published versions without this button require one manual upgrade first.
 
 ## Same protocol as Android
 

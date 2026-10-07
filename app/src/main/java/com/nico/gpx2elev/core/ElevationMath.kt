@@ -73,9 +73,9 @@ object ElevationMath {
                 val longitude = interpolate(x, lon, it)
                 GeoPoint(interpolate(x, lat, it), if (crossesDateLine) ((longitude + 180) % 360 + 360) % 360 - 180 else longitude)
             }
-            val gps = if (kept.all { segment[it].elevation != null }) {
+            val gps = if (kept.all { segment[it].elevation?.isFinite() == true }) {
                 val nativeZ = kept.map { segment[it].elevation!! }.toDoubleArray()
-                sampledX.map { interpolate(x, nativeZ, it) }.toDoubleArray()
+                sampledX.map { interpolate(x, nativeZ, it) }.toDoubleArray().takeIf { values -> values.all { it.isFinite() } }
             } else null
             result += SampledSegment(sampledX, points, gps)
             count += points.size
@@ -167,6 +167,7 @@ object ElevationMath {
         var up = 0.0; var down = 0.0; var upError = 0.0; var downError = 0.0
         for (i in 1 until z.size) {
             val delta = z[i] - z[i - 1]
+            require(delta.isFinite()) { "Altitudes non finies." }
             if (delta > 0) {
                 val adjusted = delta - upError
                 val next = up + adjusted
@@ -177,6 +178,7 @@ object ElevationMath {
                 downError = (next - down) - adjusted; down = next
             }
         }
+        require(up.isFinite() && down.isFinite()) { "Altitudes non finies." }
         return Gain(up, down)
     }
 
@@ -185,6 +187,18 @@ object ElevationMath {
         val gain = totals(anchors(smooth).map { smooth[it] }.toDoubleArray())
         check(abs(gain.up - gain.down - (smooth.last() - smooth.first())) < 1e-6)
         return gain to smooth
+    }
+
+    private fun comparisonGain(operation: () -> Gain): Gain? {
+        return try {
+            operation().takeIf { it.up.isFinite() && it.down.isFinite() }
+        } catch (_: IllegalArgumentException) {
+            null
+        } catch (_: IllegalStateException) {
+            null
+        } catch (_: ArithmeticException) {
+            null
+        }
     }
 
     fun compute(prepared: PreparedTrack, elevations: DoubleArray): Computed {
@@ -201,14 +215,17 @@ object ElevationMath {
             profiles += Profile(segment.distance.map { it + distanceOffset }.toDoubleArray(), filtered)
             offset += z.size
             distanceOffset += segment.distance.last()
-            gpsFiltered = if (gpsFiltered != null && segment.gpxElevation != null) {
-                gpsFiltered + filteredGain(segment.distance, segment.gpxElevation).first
+            val previous = gpsFiltered
+            gpsFiltered = if (previous != null && segment.gpxElevation != null) {
+                comparisonGain { previous + filteredGain(segment.distance, segment.gpxElevation).first }
             } else null
         }
         val nativeSegments = prepared.track.segments.filter { it.size >= 2 }
-        val raw = if (nativeSegments.all { segment -> segment.all { it.elevation != null } }) {
-            nativeSegments.fold(Gain(0.0, 0.0)) { accumulator, segment ->
-                accumulator + totals(segment.map { it.elevation!! }.toDoubleArray())
+        val raw = if (nativeSegments.all { segment -> segment.all { it.elevation?.isFinite() == true } }) {
+            comparisonGain {
+                nativeSegments.fold(Gain(0.0, 0.0)) { accumulator, segment ->
+                    accumulator + totals(segment.map { it.elevation!! }.toDoubleArray())
+                }
             }
         } else null
         return Computed(gain, profiles, raw, gpsFiltered)

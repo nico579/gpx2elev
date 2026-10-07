@@ -13,12 +13,13 @@ import kotlin.math.*
 enum class ElevationSource(val label: String, val configuration: String) {
     IGN("IGN LiDAR HD", "ign_lidar_hd_mnt_mono_wld-7dec-v1"),
     MAPTERHORN("Mapterhorn", "terrarium-z13-parent-bilinear-v1"),
-    FABDEM("FABDEM 1.2", "FABDEM_V1-2-bilinear-seamless-v1"),
-    COPERNICUS("Copernicus GLO-30", "GLO30-2021-bilinear-seamless-v1"),
+    FABDEM("FABDEM 1.2", "FABDEM_V1-2-bilinear-seamless-v2"),
+    COPERNICUS("Copernicus GLO-30", "GLO30-2021-bilinear-seamless-v2"),
     SRTM("SRTM90", "SRTM3-v2.1-bilinear-v1");
 }
 data class SourceFailure(val source: ElevationSource, val reason: String)
-data class ElevationSeries(val source: ElevationSource, val values: DoubleArray, val fromCache: Boolean, val fallbacks: List<SourceFailure>)
+data class ElevationSeries(val source: ElevationSource, val values: DoubleArray, val fromCache: Boolean,
+                           val fallbacks: List<SourceFailure>, val cacheWarning: String? = null)
 class MissingCoverage(message: String) : IOException(message)
 data class Progress(val message: String, val completed: Int, val total: Int)
 
@@ -84,8 +85,10 @@ class ElevationRepository(private val profiles: File, private val reader: ModelR
                 require(z.size == points.size) { "Nombre d'altitudes incorrect." }
                 val missing = z.count { !it.isFinite() || it !in -1000.0..9000.0 }
                 if (missing > 0) throw MissingCoverage("$missing positions sans altitude utilisable sur ${points.size}.")
-                save(file, z)
-                return ElevationSeries(source, z, false, failures)
+                val cacheWarning = try { save(file, z); null }
+                catch (e: IOException) { e.message ?: "Impossible d'enregistrer le cache." }
+                catch (e: IllegalStateException) { e.message ?: "Impossible d'enregistrer le cache." }
+                return ElevationSeries(source, z, false, failures, cacheWarning)
             } catch (e: CancellationException) { throw e }
             catch (e: Exception) {
                 failures += SourceFailure(source, e.message?.take(220) ?: "Lecture des altitudes impossible.")
@@ -165,10 +168,26 @@ class PublicModels(private val directory: File, private val http: HttpTransport,
             cache[key]?.let { return it }
             if (key in missing) throw HttpFailure(404, "Tuile Mapterhorn absente.")
             val path = File(directory, "mapterhorn_${z}_${xx}_$y.webp")
-            val bytes = if (path.exists()) path.readBytes() else try {
-                http.bytes("https://tiles.mapterhorn.com/$key.webp", maximum = 2 * 1024 * 1024).bytes.also { atomicBytes(path, it) }
-            } catch (e: HttpFailure) { if (e.status == 404) missing += key; throw e }
-            return decode(bytes).also { cache[key] = it }
+            fun decoded(bytes: ByteArray) = decode(bytes).also {
+                require(it.size in listOf(256, 512) && it.pixels.size == it.size * it.size) { "Tuile Mapterhorn illisible." }
+            }
+            if (path.exists()) {
+                try {
+                    return decoded(path.readBytes()).also {
+                        path.setLastModified(System.currentTimeMillis()); cache[key] = it
+                    }
+                } catch (e: CancellationException) { throw e }
+                catch (e: Exception) {
+                    if (e !is IOException && e !is IllegalArgumentException && e !is IllegalStateException) throw e
+                    if (!path.delete()) throw IOException("Impossible de supprimer la tuile corrompue.", e)
+                }
+            }
+            val bytes = try { http.bytes("https://tiles.mapterhorn.com/$key.webp", maximum = 2 * 1024 * 1024).bytes }
+            catch (e: HttpFailure) { if (e.status == 404) missing += key; throw e }
+            val result = decoded(bytes)
+            // A valid tile remains usable even when the optional disk cache is full.
+            try { atomicBytes(path, bytes) } catch (_: IOException) { } catch (_: IllegalStateException) { }
+            return result.also { cache[key] = it }
         }
         fun sample(point: GeoPoint, zoom: Int): Double {
             require(abs(point.lat) <= 85.0511287) { "Latitude hors de la couverture Mapterhorn." }
@@ -213,6 +232,37 @@ class PublicModels(private val directory: File, private val http: HttpTransport,
         val blocks = RasterBlocks()
         val rasters = mutableMapOf<Pair<Int, Int>, TiffRaster>()
         val archives = mutableMapOf<String, Pair<ByteSource, List<ZipMember>>>()
+        val recovered = mutableSetOf<Pair<Int, Int>>()
+        fun fabdemFile(lat: Int, lon: Int) = File(directory, "${tileName(lat, lon)}_FABDEM_V1-2.tif")
+        fun downloadFabdem(lat: Int, lon: Int, path: File) {
+            val a = floor(lat / 10.0).toInt() * 10; val b = floor(lon / 10.0).toInt() * 10
+            val archive = "${tileName(a, b)}-${tileName(a + 10, b + 10)}_FABDEM_V1-2.zip"
+            val url = FAB_BASE + archive
+            val (reader, members) = archives.getOrPut(url) {
+                val tail = http.bytes(url, "bytes=-65557")
+                val size = tail.totalSize ?: error("Taille de l'archive FABDEM inconnue.")
+                val remote = RemoteByteSource(url, http, directory)
+                val tailOffset = size - tail.bytes.size
+                val composite = object : ByteSource {
+                    override fun read(offset: Long, length: Int) = if (offset >= tailOffset && offset + length <= size) {
+                        tail.bytes.copyOfRange((offset - tailOffset).toInt(), (offset - tailOffset).toInt() + length)
+                    } else remote.read(offset, length)
+                    override fun close() = remote.close()
+                }
+                composite to RemoteZip.members(composite, size)
+            }
+            val member = members.firstOrNull { it.name.substringAfterLast('/') == path.name }
+                ?: throw MissingCoverage("Tuile FABDEM ${tileName(lat, lon)} absente.")
+            val offset = RemoteZip.dataOffset(reader, member)
+            progress(Progress("Téléchargement de la tuile FABDEM ${tileName(lat, lon)}", 0, points.size))
+            val candidate = File(directory, "${path.name}.${java.util.UUID.randomUUID()}.part")
+            try {
+                http.consumeRange(url, offset, member.compressed) { RemoteZip.extract(it, member, candidate, http::checkActive) }
+                // Validate metadata before publishing the extracted file. Blocks remain lazily decoded.
+                FileByteSource(candidate).use { TiffRaster(it, "validation", RasterBlocks()) }
+                java.nio.file.Files.move(candidate.toPath(), path.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            } finally { candidate.delete() }
+        }
         fun open(lat: Int, lon: Int): TiffRaster {
             val key = lat to lon
             rasters[key]?.let { return it }
@@ -221,50 +271,48 @@ class PublicModels(private val directory: File, private val http: HttpTransport,
                 val stem = "Copernicus_DSM_COG_10_${name.substring(0, 3)}_00_${name.substring(3)}_00_DEM"
                 RemoteByteSource("https://copernicus-dem-30m.s3.amazonaws.com/$stem/$stem.tif", http, directory)
             } else {
-                val path = File(directory, "${name}_FABDEM_V1-2.tif")
-                if (!path.exists()) {
-                    val a = floor(lat / 10.0).toInt() * 10; val b = floor(lon / 10.0).toInt() * 10
-                    val archive = "${tileName(a, b)}-${tileName(a + 10, b + 10)}_FABDEM_V1-2.zip"
-                    val url = FAB_BASE + archive
-                    val (reader, members) = archives.getOrPut(url) {
-                        val tail = http.bytes(url, "bytes=-65557")
-                        val size = tail.totalSize ?: error("Taille de l'archive FABDEM inconnue.")
-                        val remote = RemoteByteSource(url, http, directory)
-                        val tailOffset = size - tail.bytes.size
-                        val composite = object : ByteSource {
-                            override fun read(offset: Long, length: Int) = if (offset >= tailOffset && offset + length <= size) {
-                                tail.bytes.copyOfRange((offset - tailOffset).toInt(), (offset - tailOffset).toInt() + length)
-                            } else remote.read(offset, length)
-                        }
-                        composite to RemoteZip.members(composite, size)
-                    }
-                    val member = members.firstOrNull { it.name.substringAfterLast('/') == path.name }
-                        ?: throw MissingCoverage("Tuile FABDEM $name absente.")
-                    val offset = RemoteZip.dataOffset(reader, member)
-                    progress(Progress("Téléchargement de la tuile FABDEM $name", 0, points.size))
-                    http.consumeRange(url, offset, member.compressed) { RemoteZip.extract(it, member, path, http::checkActive) }
-                }
-                FileByteSource(path)
+                val path = fabdemFile(lat, lon)
+                if (!path.exists()) downloadFabdem(lat, lon, path)
+                FileByteSource(path).also { path.setLastModified(System.currentTimeMillis()) }
             }
             return try { TiffRaster(bytes, source.name + name, blocks).also { rasters[key] = it } }
             catch (e: Exception) { bytes.close(); throw e }
+        }
+        fun <T> withRaster(lat: Int, lon: Int, read: (TiffRaster) -> T): T {
+            while (true) {
+                try { return read(open(lat, lon)) }
+                catch (e: Exception) {
+                    if (source != ElevationSource.FABDEM || e is CancellationException || e is UnsupportedRasterFormat ||
+                        (e !is IOException && e !is IllegalArgumentException && e !is IllegalStateException)) throw e
+                    val path = fabdemFile(lat, lon)
+                    if (!path.exists()) throw e
+                    val key = lat to lon
+                    rasters.remove(key)?.close()
+                    blocks.invalidate(source.name + tileName(lat, lon))
+                    if (!path.delete()) throw IOException("Impossible de supprimer la tuile corrompue.", e)
+                    // One recovery per tile, including failures discovered in a compressed block.
+                    if (!recovered.add(key)) throw e
+                }
+            }
         }
         try {
             return DoubleArray(points.size) { i ->
                 http.checkActive()
                 if (i % 128 == 0) progress(Progress("Altitudes ${source.label}", i, points.size))
                 val p = GeoPoint(points[i].lat, wrapLon(points[i].lon))
-                val raster = open(floor(p.lat).toInt(), floor(p.lon).toInt())
+                val lat = floor(p.lat).toInt(); val lon = floor(p.lon).toInt()
+                val raster = withRaster(lat, lon) { it }
                 val (gx, gy) = raster.grid(p)
                 val x = floor(gx).toInt(); val y = floor(gy).toInt()
                 var value = 0.0
                 for ((col, row, weight) in corners(x, y, gx - x, gy - y)) {
                     if (weight <= 1e-12) continue
-                    val z = if (col in 0 until raster.width && row in 0 until raster.height) raster.pixel(col, row) else {
+                    val z = if (col in 0 until raster.width && row in 0 until raster.height) {
+                        withRaster(lat, lon) { it.pixel(col, row) }
+                    } else {
                         val q = raster.position(col, row)
                         val wrapped = GeoPoint(q.lat, wrapLon(q.lon))
-                        val neighbor = open(floor(q.lat - 1e-10).toInt(), floor(wrapped.lon + 1e-10).toInt())
-                        neighbor.bilinearInside(wrapped)
+                        withRaster(floor(q.lat - 1e-10).toInt(), floor(wrapped.lon + 1e-10).toInt()) { it.bilinearInside(wrapped) }
                     }
                     value += weight * z
                 }

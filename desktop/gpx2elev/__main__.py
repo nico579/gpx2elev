@@ -18,7 +18,12 @@ def main(argv=None):
     parser.add_argument("--output", type=Path, help="Résultat JSON du calcul sans interface")
     parser.add_argument("--csv", type=Path, help="Résultats CSV du calcul sans interface")
     parser.add_argument("--self-test-report", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--apply-update", type=Path, help=argparse.SUPPRESS)
+    parser.add_argument("--update-result", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
+    if args.apply_update:
+        from .updates import apply_install
+        return apply_install(args.apply_update)
     if args.self_test_report:
         # No display server is required for the automated packaged GUI check.
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -70,7 +75,20 @@ def main(argv=None):
     if path:
         QTimer.singleShot(0, lambda: window.open_path(path))
     window.show()
-    return app.exec()
+    if args.update_result:
+        try:
+            installed = json.loads(args.update_result.read_text(encoding="utf-8"))
+            if installed.get("status") == "ERROR":
+                from PySide6.QtWidgets import QMessageBox
+                QTimer.singleShot(0, lambda: QMessageBox.warning(window, window.tr("Mises à jour"),
+                    window.tr("La mise à jour a échoué. L'ancienne version a été restaurée.")))
+        except (OSError, ValueError):
+            pass
+    code = app.exec()
+    if window.pending_update is not None:
+        # The helper also waits for this process to terminate, releasing all bundled DLLs.
+        (window.pending_update.parent / "ready").write_text("ready", encoding="utf-8")
+    return code
 
 
 if __name__ == "__main__":

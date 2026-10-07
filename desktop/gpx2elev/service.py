@@ -22,6 +22,7 @@ class Result:
             return {"Dplus_m": g.up, "Dmoins_m": g.down} if g is not None else None
         return {"application": "gpx2elev", "version": __version__, "fichier": self.filename,
                 "modele": self.series.source.label, "depuis_cache": self.series.from_cache,
+                "avertissement_cache": self.series.cache_warning,
                 "protocole": PROTOCOL, "pas_m": STEP, "sigma_m": SIGMA, "hysteresis_m": HYSTERESIS,
                 "distance_m": self.prepared.length, "points_origine": self.prepared.track.point_count,
                 "positions_5m": self.prepared.sample_count, "terrain": gain(self.computed.gain),

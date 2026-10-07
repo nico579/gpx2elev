@@ -46,9 +46,13 @@ internal fun profileChartData(prepared: PreparedTrack, terrain: List<Profile>): 
         distanceOffset += distances.last()
     }
     val allProfiles = terrain + observations
-    return ProfileChartData(terrain, observations,
-        allProfiles.minOf { it.elevation.minOrNull()!! },
-        allProfiles.maxOf { it.elevation.maxOrNull()!! })
+    val minimum = allProfiles.minOf { it.elevation.minOrNull()!! }
+    val maximum = allProfiles.maxOf { it.elevation.maxOrNull()!! }
+    if (!(maximum - minimum).isFinite()) {
+        return ProfileChartData(terrain, emptyList(),
+            terrain.minOf { it.elevation.minOrNull()!! }, terrain.maxOf { it.elevation.maxOrNull()!! })
+    }
+    return ProfileChartData(terrain, observations, minimum, maximum)
 }
 
 internal data class ProfileViewport(
@@ -62,9 +66,9 @@ internal data class ProfileViewport(
 }
 
 internal fun fullProfileViewport(chart: ProfileChartData, length: Double): ProfileViewport {
-    val span = max(20.0, chart.maxAltitude - chart.minAltitude)
-    val low = (chart.maxAltitude + chart.minAltitude - span) / 2
-    return ProfileViewport(0.0, length, low, low + span)
+    val range = chart.maxAltitude - chart.minAltitude
+    val padding = (max(20.0, range) - range) / 2
+    return ProfileViewport(0.0, length, chart.minAltitude - padding, chart.maxAltitude + padding)
 }
 
 /** Fractions use plot coordinates; positive screen panning moves the observations with the gesture. */

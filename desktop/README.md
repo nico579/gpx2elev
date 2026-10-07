@@ -6,12 +6,12 @@ Application Python de bureau, avec des bundles autonomes incluant Python, Qt et 
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.3.3.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.3, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.3.4.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.4, construite sur GitHub Actions.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.3-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.3.3-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.4-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.3.4-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
 
 Le sélecteur **FR / EN** de l’en-tête change la langue immédiatement et mémorise le choix. Les nombres affichés suivent la langue ; les CSV gardent leur schéma et leurs valeurs.
@@ -21,6 +21,14 @@ Choisir un GPX, ou le déposer dans la fenêtre. L'ouverture avec l'application 
 Le premier calcul nécessite Internet. Le modèle, le D+, le D−, la distance, le profil lissé et les altitudes GPX brutes/filtrées sont présentés. Deux exports CSV permettent d'enregistrer les résultats et chaque position du profil. Les nombres affichés sont arrondis ; les exports conservent six décimales pour la vérification, sans prétendre à une précision physique au micromètre.
 
 Le graphique superpose le terrain lissé (vert) et les mesures originales du GPX (orange pointillé), avec une échelle commune. La molette zoome autour du pointeur ; glisser déplace la vue. Les boutons **Zoom +**, **Zoom −** et **Vue complète** sont aussi disponibles. Un double-clic rétablit la vue complète. Les segments restent séparés et les altitudes manquantes interrompent la courbe GPX.
+
+**Plein écran** agrandit le graphique ; **Quitter le plein écran** ou **Échap** restaure la fenêtre normale. Le zoom et la position sont conservés. Un échec d'enregistrement du cache laisse le résultat disponible et affiche un avertissement sur son utilisation hors connexion.
+
+## Mises à jour
+
+Le bouton **Mises à jour**, en bas de la fenêtre, recherche manuellement la dernière release stable officielle sur GitHub et affiche sa version, sa taille et ses notes. **Télécharger et installer** sélectionne le bundle Windows, Linux ou macOS correspondant à l'architecture courante, vérifie son SHA-256 et lance son contrôle hors connexion avant de modifier l'installation. **Installer et redémarrer** ferme l'application, remplace son dossier, puis la relance. Les données et le dernier GPX restent dans leur dossier séparé ; une copie de l'ancienne application est conservée et restaurée si le remplacement ou le lancement échoue.
+
+Le dossier de l'application et son parent doivent être accessibles en écriture, et les données doivent se trouver hors du dossier de l'application. Le dossier extrait doit garder son nom `gpx2elev` (`gpx2elev.app` sur macOS). Avec un lancement depuis les sources Python ou un dossier renommé, **Télécharger** et **Ouvrir le dossier** fournissent le bundle vérifié pour une installation manuelle. Aucun contrôle n'est lancé automatiquement ; Internet est nécessaire après une demande de vérification. Les versions publiées sans ce bouton demandent une première mise à jour manuelle.
 
 ## Même protocole que l'application Android
 
