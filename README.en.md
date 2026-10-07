@@ -8,12 +8,14 @@
 
 ## Usage
 
-Android 0.3.2 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
+Android 0.3.3 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
 
 1. Install the APK on Android 8.0 or later, or extract the desktop bundle for your platform.
 2. Select **EN / FR** at the top of the screen. The selection is saved. The first launch uses French on a French-language device, and English otherwise.
 3. Choose a GPX track. On Android, you can also open or **share a GPX file with gpx2elev**. On desktop, you can drop it into the window.
 4. The first calculation downloads elevation data. The screen shows progress, the selected source, ascent, descent, distance and the smoothed elevation profile.
+
+The chart overlays smoothed terrain (green) and original GPX measurements (dashed orange) on a shared scale. Pinch to zoom and drag to pan, or use the zoom and **Full view** buttons. Missing elevations interrupt the GPX curve and segments remain separate.
 5. Expand the GPX comparison to see the raw sum of elevation changes and the filtered GPX elevations. Export results as CSV.
 
 Android accepts GPX, XML, text and binary MIME types through `EXTRA_STREAM`, `ClipData` or a file URI; the contents must be a valid GPX. See [Android's sharing documentation](https://developer.android.com/develop/ui/compose/sharing/receive).
@@ -61,7 +63,7 @@ Release APKs are built by GitHub Actions. For local development, open the reposi
 
 APK output: `app/build/outputs/apk/release/app-release.apk`. Local releases use the project's development key in `app/debug.keystore`, excluded from Git. Keep that key locally for compatible updates. Clones without it use Gradle's default Android development key. The OBD2 Dash key is not used.
 
-Android and Python share version **0.3.2**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
+Android and Python share version **0.3.3**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
 
 For a new release, update `VERSION` and `desktop/gpx2elev/assets/version.txt`, increment the Android `versionCode`, and push the matching tag. Version mismatches block publication.
 

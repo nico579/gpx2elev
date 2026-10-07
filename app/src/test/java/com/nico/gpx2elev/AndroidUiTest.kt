@@ -72,6 +72,47 @@ class AndroidUiTest {
         rule.onNodeWithText("Vider le cache").performScrollTo().assertIsNotEnabled()
     }
 
+    @Test fun chartShowsNativeGpxLegendAndSharedBounds() {
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(
+            TrackPoint(GeoPoint(45.0, 5.0), 20.0),
+            TrackPoint(GeoPoint(45.0, 5.0005), null),
+            TrackPoint(GeoPoint(45.0, 5.001), 600.0),
+        ))))
+        val values = DoubleArray(prepared.sampleCount) { 100.0 }
+        val result = Result("comparaison.gpx", prepared, ElevationMath.compute(prepared, values),
+            ElevationSeries(ElevationSource.IGN, values, true, emptyList()), 0L)
+        rule.runOnUiThread {
+            rule.activity.setContent { GpxScreen(AppState(result = result), {}, {}, {}, {}, {}) }
+        }
+        rule.onNodeWithText("Profil lissé (terrain)").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Mesures GPX").assertIsDisplayed()
+        rule.onNodeWithText("Min. 20 m").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Max. 600 m").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres")
+            .performScrollTo().assertIsDisplayed()
+        screenshot("profils_GPX_partiels")
+        rule.onNodeWithContentDescription("Zoom avant").performScrollTo().performClick()
+        rule.onNodeWithText("Altitude visible : 165 à 455 m").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("EN").performClick()
+        rule.onNodeWithText("Visible elevation: 165 to 455 m").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("FR").performClick()
+        rule.onNodeWithText("Vue complète").performScrollTo().performClick()
+        rule.onNodeWithText("Altitude visible : 20 à 600 m").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test fun chartReportsMissingGpxObservations() {
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(
+            TrackPoint(GeoPoint(45.0, 5.0), null), TrackPoint(GeoPoint(45.0, 5.001), null),
+        ))))
+        val values = DoubleArray(prepared.sampleCount) { 100.0 }
+        val result = Result("sans-altitudes.gpx", prepared, ElevationMath.compute(prepared, values),
+            ElevationSeries(ElevationSource.IGN, values, true, emptyList()), 0L)
+        rule.runOnUiThread {
+            rule.activity.setContent { GpxScreen(AppState(result = result), {}, {}, {}, {}, {}) }
+        }
+        rule.onNodeWithText("Altitudes GPX manquantes.").performScrollTo().assertIsDisplayed()
+    }
+
     private fun reference(): Pair<PreparedTrack, DoubleArray> {
         assumeTrue("Banc d'essai personnel local", javaClass.getResource("/reference.gpx") != null && javaClass.getResource("/reference.csv") != null)
         val track = javaClass.getResourceAsStream("/reference.gpx")!!.use { GpxParser.parse(it) }

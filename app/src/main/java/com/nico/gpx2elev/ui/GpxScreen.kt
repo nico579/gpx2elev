@@ -2,6 +2,7 @@ package com.nico.gpx2elev.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -16,8 +17,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,6 +34,7 @@ import com.nico.gpx2elev.AppState
 import com.nico.gpx2elev.Result
 import com.nico.gpx2elev.R
 import com.nico.gpx2elev.core.Profile
+import com.nico.gpx2elev.core.PreparedTrack
 import com.nico.gpx2elev.data.ElevationRepository
 import com.nico.gpx2elev.data.CacheSize
 import com.nico.gpx2elev.I18n
@@ -185,7 +194,7 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
         Metric(t("DESCENTE · D−"), t("${meters(result.computed.gain.down)} m"), Modifier.weight(1f))
         Metric(t("DISTANCE"), t("${distance(result.prepared.length)} km"), Modifier.weight(1f))
     }
-    ProfileCard(result.computed.profiles, result.prepared.length, result.computed.minAltitude, result.computed.maxAltitude)
+    ProfileCard(result.prepared, result.computed.profiles)
     if (result.series.fallbacks.isNotEmpty()) {
         Card(shape = RoundedCornerShape(18.dp)) {
             Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -228,57 +237,117 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     }
 }
 
-@Composable private fun ProfileCard(profiles: List<Profile>, length: Double, minAltitude: Double, maxAltitude: Double) {
+@Composable private fun ProfileCard(prepared: PreparedTrack, profiles: List<Profile>) {
     val line = MaterialTheme.colorScheme.primary
+    val observations = if (isSystemInDarkTheme()) Color(0xFFF0B16B) else Color(0xFFB86A22)
     val labels = MaterialTheme.colorScheme.onSurfaceVariant
-    val paths = remember(profiles) { profiles.map { profile ->
-        // Preserve minima/maxima per bucket to avoid hiding narrow peaks in the display.
-        val n = profile.distance.size
-        val stride = max(1, n / 600)
-        val indices = mutableSetOf(0, n - 1)
-        for (start in 0 until n step stride) {
-            val end = min(n, start + stride)
-            indices += (start until end).minBy { profile.elevation[it] }
-            indices += (start until end).maxBy { profile.elevation[it] }
-        }
-        indices.sorted().map { profile.distance[it] to profile.elevation[it] }
-    } }
+    val chart = remember(prepared, profiles) { profileChartData(prepared, profiles) }
+    val length = prepared.length
+    val minAltitude = chart.minAltitude
+    val maxAltitude = chart.maxAltitude
+    val fullViewport = remember(chart, length) { fullProfileViewport(chart, length) }
+    var viewport by remember(chart) { mutableStateOf(fullViewport) }
+    fun axisDistance(value: Double) = String.format(I18n.locale,
+        if (viewport.distanceSpan < 100) "%.4f" else if (viewport.distanceSpan < 1000) "%.3f" else "%.2f", value / 1000)
+    fun axisAltitude(value: Double) = String.format(I18n.locale,
+        if (viewport.altitudeSpan < 2) "%.2f" else if (viewport.altitudeSpan < 20) "%.1f" else "%,.0f", value)
+    val paths = remember(chart, viewport) { chart.terrain.map { visibleProfilePoints(it, viewport) }.filter { it.isNotEmpty() } }
+    val observationPaths = remember(chart, viewport) { chart.gpx.map { visibleProfilePoints(it, viewport) }.filter { it.isNotEmpty() } }
+    val plotMarginPx = with(LocalDensity.current) { 8.dp.toPx() }
+    val chartDescription = t("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres")
+    val zoomOutDescription = t("Zoom arrière")
     Card(shape = RoundedCornerShape(18.dp)) {
         Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Text(t("Profil d'altitude"), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(Modifier.width(22.dp).height(10.dp)) {
+                        drawLine(line, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 2.dp.toPx())
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(t("Profil lissé (terrain)"), fontSize = 12.sp, color = labels)
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(Modifier.width(22.dp).height(10.dp)) {
+                        drawLine(observations, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), 2.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 3.dp.toPx())))
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Text(t("Mesures GPX"), fontSize = 12.sp, color = labels)
+                }
+            }
+            if (chart.gpx.isEmpty()) Text(t("Altitudes GPX manquantes."), fontSize = 12.sp, color = labels)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { viewport = transformProfileViewport(viewport, fullViewport, 2.0) },
+                    enabled = viewport.distanceSpan > fullViewport.distanceSpan / 200 * 1.000001) {
+                    Icon(Icons.Default.Add, t("Zoom avant"))
+                }
+                IconButton(onClick = { viewport = transformProfileViewport(viewport, fullViewport, .5) }, enabled = viewport != fullViewport) {
+                    Text("−", Modifier.clearAndSetSemantics { contentDescription = zoomOutDescription }, fontSize = 24.sp)
+                }
+                TextButton(onClick = { viewport = fullViewport }, enabled = viewport != fullViewport) { Text(t("Vue complète")) }
+            }
+            Text(t("Pincez pour zoomer, glissez pour déplacer la vue."), fontSize = 11.sp, color = labels)
+            Text(t("Altitudes totales"), fontSize = 11.sp, color = labels)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(t("Min. ${meters(minAltitude)} m"), fontSize = 12.sp, color = labels)
                 Text(t("Max. ${meters(maxAltitude)} m"), fontSize = 12.sp, color = labels)
             }
-            Canvas(Modifier.fillMaxWidth().height(150.dp)) {
-                val span = max(20.0, maxAltitude - minAltitude)
-                val low = (maxAltitude + minAltitude - span) / 2
+            Canvas(Modifier.fillMaxWidth().height(150.dp).semantics { contentDescription = chartDescription }
+                .pointerInput(chart) {
+                    detectTransformGestures { centroid, pan, zoom, _ ->
+                        val plotHeight = size.height - 2 * plotMarginPx
+                        if (size.width > 0 && plotHeight > 0) {
+                            viewport = transformProfileViewport(viewport, fullViewport, zoom.toDouble(),
+                                centroid.x / size.width.toDouble(), 1 - (centroid.y - plotMarginPx) / plotHeight.toDouble(),
+                                pan.x / size.width.toDouble(), pan.y / plotHeight.toDouble())
+                        }
+                    }
+                }) {
+                val span = viewport.altitudeSpan
+                val low = viewport.minAltitude
                 val margin = 8.dp.toPx()
                 val h = size.height - 2 * margin
                 for (i in 0..3) {
                     val y = margin + i * h / 3
                     drawLine(labels.copy(alpha = .13f), Offset(0f, y), Offset(size.width, y), 1.dp.toPx())
                 }
-                for (points in paths) {
-                    if (points.isEmpty()) continue
+                fun pathFor(points: List<Pair<Double, Double>>): Path {
                     val path = Path()
-                    val firstX = (points.first().first / length * size.width).toFloat()
-                    var lastX = firstX
                     for ((i, pair) in points.withIndex()) {
-                        val x = (pair.first / length * size.width).toFloat()
+                        val x = ((pair.first - viewport.minDistance) / viewport.distanceSpan * size.width).toFloat()
                         val y = (margin + h * (1 - (pair.second - low) / span)).toFloat()
                         if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
-                        lastX = x
                     }
-                    val fill = Path().apply { addPath(path); lineTo(lastX, size.height); lineTo(firstX, size.height); close() }
-                    drawPath(fill, line.copy(alpha = .10f))
-                    drawPath(path, line, style = Stroke(width = 2.dp.toPx()))
+                    return path
+                }
+                clipRect(top = margin, bottom = size.height - margin) {
+                    for (points in paths) {
+                        val path = pathFor(points)
+                        val firstX = ((points.first().first - viewport.minDistance) / viewport.distanceSpan * size.width).toFloat()
+                        val lastX = ((points.last().first - viewport.minDistance) / viewport.distanceSpan * size.width).toFloat()
+                        val fill = Path().apply { addPath(path); lineTo(lastX, size.height); lineTo(firstX, size.height); close() }
+                        drawPath(fill, line.copy(alpha = .10f))
+                    }
+                    for (points in observationPaths) {
+                        if (points.size == 1 || points.all { it == points.first() }) {
+                            val point = points.first()
+                            drawCircle(observations, radius = 2.dp.toPx(), center = Offset(
+                                ((point.first - viewport.minDistance) / viewport.distanceSpan * size.width).toFloat(),
+                                (margin + h * (1 - (point.second - low) / span)).toFloat()))
+                        } else {
+                            drawPath(pathFor(points), observations, style = Stroke(width = 1.5.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(5.dp.toPx(), 3.dp.toPx()))))
+                        }
+                    }
+                    for (points in paths) drawPath(pathFor(points), line, style = Stroke(width = 2.dp.toPx()))
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(t("0 km"), color = labels, fontSize = 11.sp)
-                Text(t("${distance(length)} km"), color = labels, fontSize = 11.sp)
+                Text(t("${axisDistance(viewport.minDistance)} km"), color = labels, fontSize = 11.sp)
+                Text(t("${axisDistance(viewport.maxDistance)} km"), color = labels, fontSize = 11.sp)
             }
+            Text(t("Altitude visible : ${axisAltitude(viewport.minAltitude)} à ${axisAltitude(viewport.maxAltitude)} m"), color = labels, fontSize = 11.sp)
         }
     }
 }

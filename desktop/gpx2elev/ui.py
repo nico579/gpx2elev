@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QFileDialog, 
     QPushButton, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import __version__
+from .core import Profile, distances
 from .i18n import translate, number
 from .providers import Cancelled, RANKING, atomic_write
 from .service import calculate, export_profile, export_summary
@@ -85,12 +86,153 @@ def app_icon():
 
 
 class ProfileChart(QWidget):
+    view_changed = Signal()
+
     def __init__(self, parent=None):
         super().__init__(parent)
+        self._result = None
+        self._drag_position = None
         self.result = None
-        self.setMinimumHeight(140)
+        self.setMinimumHeight(170)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        self.setAccessibleName("Profil d'altitude lissé, distance en kilomètres et altitude en mètres")
+        self.setAccessibleName("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres")
+
+    @property
+    def result(self):
+        return self._result
+
+    @result.setter
+    def result(self, result):
+        if result is not None and result is self._result:
+            return
+        self._result = result
+        self.gpx_profiles = []
+        self.bounds = self.view = None
+        if result is None:
+            self.view_changed.emit()
+            return
+        offset = 0.0
+        for segment in result.prepared.track.segments:
+            x = distances(segment.coordinates)
+            # Original observations, including stops; missing elevations break the line.
+            valid = np.isfinite(segment.elevations)
+            edges = np.flatnonzero(np.diff(np.r_[False, valid, False]))
+            for start, end in edges.reshape(-1, 2):
+                self.gpx_profiles.append(Profile(x[start:end] + offset, segment.elevations[start:end]))
+            offset += x[-1]
+        self.minimum = min([result.computed.minimum] + [float(p.elevations.min()) for p in self.gpx_profiles])
+        self.maximum = max([result.computed.maximum] + [float(p.elevations.max()) for p in self.gpx_profiles])
+        margin = max((self.maximum - self.minimum) * .12, 5)
+        self.bounds = (0.0, max(result.prepared.length, 1), self.minimum - margin, self.maximum + margin)
+        self.reset_view()
+
+    def chart_rect(self):
+        return QRectF(65, 42, max(1, self.width() - 88), max(1, self.height() - 82))
+
+    @staticmethod
+    def clamp_axis(start, end, low, high):
+        span = min(end - start, high - low)
+        start = max(low, min(start, high - span))
+        return start, start + span
+
+    def reset_view(self):
+        self.view = self.bounds
+        self._drag_position = None
+        self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.update()
+        self.view_changed.emit()
+
+    def zoom(self, factor, position=None):
+        if self.view is None:
+            return
+        rect = self.chart_rect()
+        position = position or rect.center()
+        anchors = ((position.x() - rect.left()) / rect.width(),
+                   1 - (position.y() - rect.top()) / rect.height())
+        changed = []
+        for i, anchor in zip((0, 2), anchors):
+            start, end = self.view[i:i + 2]
+            low, high = self.bounds[i:i + 2]
+            span = max((high - low) / 200, min((high - low), (end - start) / factor))
+            value = start + (end - start) * anchor
+            changed.extend(self.clamp_axis(value - span * anchor, value + span * (1 - anchor), low, high))
+        self.view = tuple(changed)
+        self.setCursor(Qt.CursorShape.OpenHandCursor if self.view != self.bounds else Qt.CursorShape.ArrowCursor)
+        self.update()
+        self.view_changed.emit()
+
+    def pan(self, dx, dy):
+        if self.view is None:
+            return
+        rect = self.chart_rect()
+        left, right, low, high = self.view
+        shift_x = -dx / rect.width() * (right - left)
+        shift_y = dy / rect.height() * (high - low)
+        self.view = (*self.clamp_axis(left + shift_x, right + shift_x, *self.bounds[:2]),
+                     *self.clamp_axis(low + shift_y, high + shift_y, *self.bounds[2:]))
+        self.update()
+        self.view_changed.emit()
+
+    def wheelEvent(self, event):
+        if self.view is not None and self.chart_rect().contains(event.position()):
+            steps = event.angleDelta().y() / 120
+            if steps:
+                self.zoom(1.25 ** max(-10, min(10, steps)), event.position())
+                event.accept()
+                return
+        super().wheelEvent(event)
+
+    def mousePressEvent(self, event):
+        if self.view is not None and event.button() == Qt.MouseButton.LeftButton and self.chart_rect().contains(event.position()):
+            self._drag_position = event.position()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            event.accept()
+            return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._drag_position is not None:
+            delta = event.position() - self._drag_position
+            self.pan(delta.x(), delta.y())
+            self._drag_position = event.position()
+            event.accept()
+            return
+        super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self._drag_position is not None:
+            self._drag_position = None
+            self.setCursor(Qt.CursorShape.OpenHandCursor if self.view != self.bounds else Qt.CursorShape.ArrowCursor)
+            event.accept()
+            return
+        super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton and self.view is not None:
+            self.reset_view()
+            event.accept()
+            return
+        super().mouseDoubleClickEvent(event)
+
+    @staticmethod
+    def display_points(profile, left, right):
+        # Bound drawing work while retaining each bucket's minimum and maximum.
+        start = max(0, np.searchsorted(profile.distance, left, side="left") - 1)
+        end = min(len(profile.distance), np.searchsorted(profile.distance, right, side="right") + 1)
+        if profile.distance[-1] < left or profile.distance[0] > right:
+            return np.empty((0, 2))
+        distance, elevations = profile.distance[start:end], profile.elevations[start:end]
+        n = len(distance)
+        if n <= 3000:
+            indices = np.arange(n)
+        else:
+            buckets = np.linspace(0, n, 1000, dtype=int)
+            selected = [0, n - 1]
+            for a, b in zip(buckets[:-1], buckets[1:]):
+                z = elevations[a:b]
+                selected.extend((a + int(z.argmin()), a + int(z.argmax())))
+            indices = np.unique(selected)
+        return np.column_stack((distance[indices], elevations[indices]))
 
     def number(self, value, decimals=0):
         return number(value, decimals, self.window().language)
@@ -103,52 +245,75 @@ class ProfileChart(QWidget):
             painter.setPen(QColor("#6b7c88"))
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self.window().tr("Le profil d’altitude apparaîtra ici"))
             return
-        profiles = self.result.computed.profiles
-        length = max(self.result.prepared.length, 1)
-        bottom, top = self.result.computed.minimum, self.result.computed.maximum
-        margin = max((top - bottom) * .12, 5)
-        low, high = bottom - margin, top + margin
-        chart = QRectF(65, 15, max(1, self.width() - 88), max(1, self.height() - 55))
+        left, right, low, high = self.view
+        length = right - left
+        chart = self.chart_rect()
         font = QFont(self.font())
         font.setPointSize(9)
         painter.setFont(font)
+        distance_decimals = max(1, min(4, int(np.ceil(-np.log10(length / 4000)))))
+        altitude_decimals = max(0, min(2, int(np.ceil(-np.log10((high - low) / 4)))))
+        legend_x = chart.left()
+        for label, color, style in (("Profil lissé (terrain)", "#176c59", Qt.PenStyle.SolidLine),
+                                    ("Mesures GPX", "#b86a22", Qt.PenStyle.DashLine)):
+            painter.setPen(QPen(QColor(color), 2, style))
+            painter.drawLine(QPointF(legend_x, 17), QPointF(legend_x + 22, 17))
+            text = self.window().tr(label)
+            painter.setPen(QColor("#365e4d"))
+            painter.drawText(QPointF(legend_x + 30, 21), text)
+            legend_x += 55 + painter.fontMetrics().horizontalAdvance(text)
+        if not self.gpx_profiles:
+            painter.setPen(QColor("#64756e"))
+            painter.drawText(QPointF(legend_x, 21), self.window().tr("Altitudes GPX manquantes."))
         for i in range(5):
             y = chart.top() + chart.height() * i / 4
             painter.setPen(QPen(QColor("#e4ece9"), 1))
             painter.drawLine(QPointF(chart.left(), y), QPointF(chart.right(), y))
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QRectF(0, y - 9, 56, 18), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.number(high - (high - low) * i / 4) + " m")
+            painter.drawText(QRectF(0, y - 9, 56, 18), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.number(high - (high - low) * i / 4, altitude_decimals) + " m")
         for i in range(5):
             x = chart.left() + chart.width() * i / 4
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QRectF(x - 32, chart.bottom() + 9, 64, 20), Qt.AlignmentFlag.AlignCenter, self.number(length * i / 4000, 1) + " km")
-        for profile in profiles:
-            # Bound drawing work while retaining each bucket's minimum and maximum.
-            n = len(profile.distance)
-            if n <= 3000:
-                indices = np.arange(n)
-            else:
-                buckets = np.linspace(0, n, 1000, dtype=int)
-                selected = [0, n - 1]
-                for a, b in zip(buckets[:-1], buckets[1:]):
-                    z = profile.elevations[a:b]
-                    selected.extend((a + int(z.argmin()), a + int(z.argmax())))
-                indices = np.unique(selected)
+            painter.drawText(QRectF(x - 32, chart.bottom() + 9, 64, 20), Qt.AlignmentFlag.AlignCenter, self.number((left + length * i / 4) / 1000, distance_decimals) + " km")
+        def make_path(points):
             path = QPainterPath()
-            for k, i in enumerate(indices):
-                x = chart.left() + float(profile.distance[i]) / length * chart.width()
-                y = chart.bottom() - (float(profile.elevations[i]) - low) / (high - low) * chart.height()
+            for k, (distance, elevation) in enumerate(points):
+                x = chart.left() + (float(distance) - left) / length * chart.width()
+                y = chart.bottom() - (float(elevation) - low) / (high - low) * chart.height()
                 if k == 0:
                     path.moveTo(x, y)
                 else:
                     path.lineTo(x, y)
+            return path
+
+        # Fill first, then both lines so no fill conceals the GPX observations.
+        terrain_points = [self.display_points(p, left, right) for p in self.result.computed.profiles]
+        terrain_points = [points for points in terrain_points if len(points)]
+        terrain_paths = [make_path(points) for points in terrain_points]
+        painter.save()
+        painter.setClipRect(chart.adjusted(-2, -2, 2, 2))
+        for points, path in zip(terrain_points, terrain_paths):
             area = QPainterPath(path)
-            area.lineTo(chart.left() + float(profile.distance[-1]) / length * chart.width(), chart.bottom())
-            area.lineTo(chart.left() + float(profile.distance[0]) / length * chart.width(), chart.bottom())
+            area.lineTo(chart.left() + (float(points[-1, 0]) - left) / length * chart.width(), chart.bottom())
+            area.lineTo(chart.left() + (float(points[0, 0]) - left) / length * chart.width(), chart.bottom())
             area.closeSubpath()
             painter.fillPath(area, QColor("#e1f1e9"))
+        painter.setPen(QPen(QColor("#b86a22"), 1.8, Qt.PenStyle.DashLine))
+        for profile in self.gpx_profiles:
+            points = self.display_points(profile, left, right)
+            if not len(points):
+                continue
+            path = make_path(points)
+            if len(points) == 1:
+                painter.setBrush(QColor("#b86a22"))
+                painter.drawEllipse(path.currentPosition(), 2.5, 2.5)
+                painter.setBrush(Qt.BrushStyle.NoBrush)
+            else:
+                painter.drawPath(path)
+        for path in terrain_paths:
             painter.setPen(QPen(QColor("#176c59"), 2.4))
             painter.drawPath(path)
+        painter.restore()
         painter.end()
 
 
@@ -273,7 +438,20 @@ class MainWindow(QMainWindow):
         self.chart = ProfileChart()
         layout.addWidget(self.chart, 1)
         self.range_label = LanguageLabel("Profil lissé · pas 5 m · gaussienne σ = 20 m · hystérésis 2 m", objectName="subtitle")
-        layout.addWidget(self.range_label)
+        self.range_label.setWordWrap(True)
+        chart_controls = QHBoxLayout()
+        chart_controls.addWidget(self.range_label, 1)
+        self.zoom_in_button = QPushButton("Zoom +")
+        self.zoom_in_button.clicked.connect(lambda: self.chart.zoom(2))
+        self.zoom_out_button = QPushButton("Zoom −")
+        self.zoom_out_button.clicked.connect(lambda: self.chart.zoom(.5))
+        self.reset_view_button = QPushButton("Vue complète")
+        self.reset_view_button.clicked.connect(self.chart.reset_view)
+        for button in (self.zoom_in_button, self.zoom_out_button, self.reset_view_button):
+            chart_controls.addWidget(button)
+        layout.addLayout(chart_controls)
+        self.chart.view_changed.connect(self.update_chart_controls)
+        self.update_chart_controls()
         self.comparison = LanguageLabel("Altitudes GPX : les sommes brutes et filtrées seront affichées après le calcul.")
         self.comparison.setWordWrap(True)
         layout.addWidget(self.comparison)
@@ -338,11 +516,19 @@ class MainWindow(QMainWindow):
             widget.setText(self.tr(original))
         self.models.setItemText(0, self.tr("Modèle automatique"))
         self.models.setAccessibleName(self.tr("Modèle d'altitude"))
-        self.chart.setAccessibleName(self.tr("Profil d'altitude lissé, distance en kilomètres et altitude en mètres"))
+        self.chart.setAccessibleName(self.tr("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres"))
+        self.chart.setToolTip(self.tr("Molette : zoom · glisser : déplacer · double-clic : vue complète"))
         if self.result is not None:
             self.show_result(self.result)
         self.chart.update()
         self.show_cache_size()
+
+    def update_chart_controls(self):
+        ready = self.chart.result is not None
+        self.zoom_in_button.setEnabled(ready and self.chart.view[1] - self.chart.view[0] >
+                                       (self.chart.bounds[1] - self.chart.bounds[0]) / 200 * 1.000001)
+        self.zoom_out_button.setEnabled(ready and self.chart.view != self.chart.bounds)
+        self.reset_view_button.setEnabled(ready and self.chart.view != self.chart.bounds)
 
     def show_cache_size(self):
         def size(value):
@@ -479,7 +665,7 @@ class MainWindow(QMainWindow):
         self.source_label.setText("Source : " + result.series.source.label + cache)
         self.chart.result = result
         self.chart.update()
-        self.range_label.setText(f"Altitude {self.number(result.computed.minimum)}–{self.number(result.computed.maximum)} m · pas 5 m · σ = 20 m · hystérésis 2 m")
+        self.range_label.setText(f"Terrain lissé {self.number(result.computed.minimum)}–{self.number(result.computed.maximum)} m · pas 5 m · σ = 20 m · hystérésis 2 m")
         def gain_text(gain):
             return f"D+ {self.number(gain.up)} m / D− {self.number(gain.down)} m" if gain is not None else "altitudes absentes ou incomplètes"
         self.comparison.setText("Comparaison GPX\nSomme brute des variations : " + gain_text(result.computed.gpx_raw) + "\nGPX rééchantillonné et filtré : " + gain_text(result.computed.gpx_filtered))

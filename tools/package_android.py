@@ -27,10 +27,10 @@ def main():
     version = check()
     results = [ET.parse(p).getroot() for p in (ROOT/'app/build/test-results/testDebugUnitTest').glob('TEST-*.xml')]
     counts = {key: sum(int(r.get(key, '0')) for r in results) for key in ('tests','failures','errors','skipped')}
-    assert counts['tests'] == 26 and counts['failures'] == counts['errors'] == 0, counts
+    assert counts['tests'] == 32 and counts['failures'] == counts['errors'] == 0, counts
     skipped = [(c.get('classname','').rsplit('.',1)[-1], c.get('name',''))
                for r in results for c in r.findall('testcase') if c.find('skipped') is not None]
-    assert set(skipped) <= OPTIONAL and counts['tests']-counts['skipped'] >= 20, skipped
+    assert set(skipped) <= OPTIONAL and counts['tests']-counts['skipped'] >= 26, skipped
     lint = ET.parse(ROOT/'app/build/reports/lint-results-release.xml').getroot().findall('issue')
     assert not any(i.get('severity') in ('Error','Fatal') for i in lint)
 

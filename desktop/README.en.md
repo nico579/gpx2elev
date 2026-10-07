@@ -4,7 +4,7 @@
 
 A Python desktop application with standalone bundles containing Python, Qt and elevation readers. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.2**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.3**. GitHub Actions builds all five release assets and verifies them before publication.
 
 ## Open the application
 
@@ -17,6 +17,8 @@ Select **FR / EN** in the header. The choice is saved and takes effect immediate
 Choose a GPX, drop it into the window or pass its path on the command line. Finder file-open events are supported. On Windows you can select the executable through **Open with → Choose another app**. File associations are not changed automatically.
 
 The first calculation requires Internet access. The screen shows the model, ascent, descent, distance, smoothed profile and raw/filtered GPX totals. CSV exports provide summary results and the full profile. Six exported decimal places help verification; they do not represent physical accuracy to the micrometre.
+
+The chart overlays smoothed terrain (green) and original GPX measurements (dashed orange) on a shared scale. Use the mouse wheel to zoom around the pointer and drag to pan. **Zoom +**, **Zoom −** and **Full view** buttons are also available. Double-click to restore the full view. Segments remain separate and missing elevations interrupt the GPX curve.
 
 ## Same protocol as Android
 

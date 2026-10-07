@@ -5,19 +5,99 @@ import time
 import unittest
 from unittest.mock import patch
 
+import numpy as np
+
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from gpx2elev.smoke import run_smoke
 from gpx2elev.smoke import SYNTHETIC_GPX
-from gpx2elev.core import parse_gpx, prepare
-from gpx2elev.providers import ProfileCache, Source
+from gpx2elev.core import Segment, Track, Profile, compute, distances, parse_gpx, prepare
+from gpx2elev.providers import ProfileCache, Series, Source
 from gpx2elev.ui import DesktopApplication, MainWindow
-from PySide6.QtGui import QFileOpenEvent
+from PySide6.QtCore import QPoint, QPointF, Qt
+from PySide6.QtGui import QFileOpenEvent, QWheelEvent
+from PySide6.QtTest import QTest
 from gpx2elev.i18n import translate, number
-from gpx2elev.service import calculate
+from gpx2elev.service import Result, calculate
 
 
 class UiTests(unittest.TestCase):
+    def test_native_gpx_overlay_gaps_stops_segments_and_common_scale(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        first = Segment(np.array([[45, 5], [45, 5], [45.001, 5], [45.002, 5], [45.003, 5]]),
+                        np.array([100, 130, np.nan, 400, 450]))
+        singleton = Segment(np.array([[46, 5]]), np.array([500]))
+        stop = Segment(np.array([[46, 5], [46, 5]]), np.array([510, 530]))
+        last = Segment(np.array([[47, 5], [47.001, 5]]), np.array([600, 620]))
+        prepared = prepare(Track([first, singleton, stop, last]))
+        values = np.full(prepared.sample_count, 200.0)
+        result = Result("segments.gpx", prepared, Series(Source.IGN, values, True, []), compute(prepared, values))
+        with tempfile.TemporaryDirectory() as directory:
+            window = MainWindow(directory, restore=False)
+            window.language_picker.setCurrentIndex(0)
+            window.show_result(result)
+            window.show()
+            app.processEvents()
+            chart = window.chart
+            self.assertEqual(len(chart.gpx_profiles), 5)
+            np.testing.assert_array_equal(chart.gpx_profiles[0].distance, [0, 0])
+            np.testing.assert_array_equal(chart.gpx_profiles[0].elevations, [100, 130])
+            np.testing.assert_allclose(chart.gpx_profiles[1].distance, distances(first.coordinates)[3:])
+            for profile in chart.gpx_profiles[2:]:
+                self.assertAlmostEqual(profile.distance[0], distances(first.coordinates)[-1])
+            self.assertAlmostEqual(chart.gpx_profiles[-1].distance[-1], prepared.length)
+            self.assertEqual((chart.minimum, chart.maximum), (100, 620))
+            np.testing.assert_allclose((result.computed.minimum, result.computed.maximum), (200, 200))
+            image = chart.grab().toImage()
+            # Both series must be visibly painted inside the plot, beyond the legend.
+            colors = {image.pixelColor(x, y).name() for x in range(65, image.width() - 23)
+                      for y in range(43, image.height() - 40)}
+            self.assertIn("#176c59", colors)
+            self.assertIn("#b86a22", colors)
+            window.close()
+
+    def test_chart_wheel_drag_reset_and_detail_after_zoom(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'test.gpx'
+            path.write_bytes(SYNTHETIC_GPX)
+            prepared = prepare(parse_gpx(path))
+            ProfileCache(root / 'profiles').save(Source.IGN, prepared.coordinates, 100 + .1 * prepared.segments[0].distance)
+            result = calculate(path, root, online=False)
+            window = MainWindow(root, restore=False)
+            window.show_result(result)
+            window.show()
+            app.processEvents()
+            chart = window.chart
+            full = chart.bounds
+            center = chart.chart_rect().center()
+            wheel = QWheelEvent(center, QPointF(chart.mapToGlobal(center.toPoint())), QPoint(), QPoint(0, 120),
+                                Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase, False)
+            app.sendEvent(chart, wheel)
+            self.assertLess(chart.view[1] - chart.view[0], full[1] - full[0])
+            zoomed = chart.view
+            QTest.mousePress(chart, Qt.MouseButton.LeftButton, pos=center.toPoint())
+            QTest.mouseMove(chart, (center + QPointF(20, 10)).toPoint())
+            QTest.mouseRelease(chart, Qt.MouseButton.LeftButton, pos=(center + QPointF(20, 10)).toPoint())
+            self.assertNotEqual(chart.view, zoomed)
+            chart.pan(100000, -100000)
+            self.assertGreaterEqual(chart.view[0], full[0])
+            self.assertLessEqual(chart.view[1], full[1])
+            self.assertGreaterEqual(chart.view[2], full[2])
+            self.assertLessEqual(chart.view[3], full[3])
+            view = chart.view
+            window.language_picker.setCurrentIndex(1 - window.language_picker.currentIndex())
+            self.assertEqual(chart.view, view)
+            QTest.mouseClick(window.reset_view_button, Qt.MouseButton.LeftButton)
+            self.assertEqual(chart.view, full)
+            self.assertFalse(window.reset_view_button.isEnabled())
+            # Zoomed drawing uses all native observations in view, rather than a fixed overview.
+            dense = Profile(np.arange(10000.0), np.sin(np.arange(10000.0)))
+            detail = chart.display_points(dense, 5000, 5010)
+            np.testing.assert_array_equal(detail[:, 0], np.arange(4999, 5012))
+            window.close()
+
     def test_clear_cache_preserves_result_and_requires_confirmation(self):
         from PySide6.QtWidgets import QMessageBox
         app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
