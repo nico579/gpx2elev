@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import stat
+import sys
 import tarfile
 import tempfile
 import threading
@@ -74,7 +75,7 @@ class UpdateTests(unittest.TestCase):
                 "PATH": os.pathsep.join((str(bundled / "plugins"), str(external))),
                 "QT_PLUGIN_PATH": str(bundled / "plugins"), "GDAL_DATA": str(bundled / "gdal"), "QT_QPA_PLATFORM": "offscreen"}
             with patch.dict(os.environ, environment, clear=True), patch("sys.frozen", True, create=True), \
-                 patch("sys._MEIPASS", str(bundled), create=True), patch("gpx2elev.updates.installed_bundle", return_value=bundled):
+                 patch("sys._MEIPASS", str(bundled), create=True), patch("gpx2elev.updates.installed_bundle", return_value=bundled.resolve()):
                 prepared = _subprocess_environment()
                 self.assertEqual(os.environ["QT_PLUGIN_PATH"], str(bundled / "plugins"))
             self.assertEqual(prepared["PYINSTALLER_RESET_ENVIRONMENT"], "1")
@@ -192,17 +193,17 @@ class UpdateTests(unittest.TestCase):
     @patch("gpx2elev.updates.verify_bundle")
     def test_install_preserves_data_waits_swaps_and_rolls_back_failure(self, verify):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            target = root / "gpx2elev"
-            target.mkdir()
+            root = Path(directory).resolve()
+            target = root / ("gpx2elev.app" if sys.platform == "darwin" else "gpx2elev")
             binary = bundle_binary(target)
+            binary.parent.mkdir(parents=True)
             binary.write_bytes(b"old binary")
             data_dir = root / "data"
             data_dir.mkdir()
             (data_dir / "last.gpx").write_bytes(b"user track")
             archive = root / "update.zip"
-            if os.name == "nt":
-                zip_bundle(archive)
+            if sys.platform in ("win32", "darwin"):
+                zip_bundle(archive, sys.platform)
             else:
                 archive = root / "update.tar.gz"
                 with tarfile.open(archive, "w:gz") as out:
@@ -213,7 +214,7 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(binary.read_bytes(), b"old binary")
             self.assertEqual(apply_install(plan, wait=False, restart=False), 0)
             self.assertEqual(binary.read_bytes(), b"new binary")
-            self.assertEqual((plan.parent / "previous" / binary.name).read_bytes(), b"old binary")
+            self.assertEqual((plan.parent / "previous" / binary.relative_to(target)).read_bytes(), b"old binary")
             self.assertEqual((data_dir / "last.gpx").read_bytes(), b"user track")
             plan = prepare_install(archive, target, data_dir)
             binary.write_bytes(b"rollback original")
@@ -234,7 +235,7 @@ class UpdateTests(unittest.TestCase):
             root = Path(directory)
             target = root / "gpx2elev"
             self.assertIsNone(installed_bundle(target / "gpx2elev.exe", frozen=False, system="win32"))
-            self.assertEqual(installed_bundle(target / "gpx2elev.exe", frozen=True, system="win32"), target)
+            self.assertEqual(installed_bundle(target / "gpx2elev.exe", frozen=True, system="win32"), target.resolve())
             self.assertIsNone(installed_bundle(root / "python.exe", frozen=True, system="win32"))
             work = root / ".gpx2elev-update-test"
             work.mkdir()
