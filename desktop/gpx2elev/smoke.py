@@ -80,6 +80,15 @@ def run_smoke(report_path, fixtures=None):
         selection = window.chart.selection
         if selection.gpx != 110 or selection.time != parse_time("2026-10-08T10:05:00Z") or selection.terrain is None:
             raise AssertionError("Le curseur ne présente pas l'heure GPX et les deux altitudes.")
+        original_size = window.size()
+        window.resize(1339, 667)
+        app.processEvents()
+        if any(label.height() < label.fontMetrics().height() for label in (window.up, window.down, window.length)):
+            raise AssertionError("Les valeurs de dénivelé sont coupées dans une fenêtre large et peu haute.")
+        if window.chart.geometry().bottom() >= window.fullscreen_button.geometry().top():
+            raise AssertionError("Les commandes chevauchent le graphique.")
+        window.resize(original_size)
+        app.processEvents()
         window.grab().save(str(report_path.with_suffix(".png")))
         gain = result.computed.gain
         for index, language, caption in ((0, "fr", "Choisir un GPX"), (1, "en", "Choose a GPX")):
@@ -129,7 +138,7 @@ def run_smoke(report_path, fixtures=None):
         from . import __version__
         report = {"status": "OK", "version": __version__, "frozen": bool(getattr(sys, "frozen", False)),
                   "platform": sys.platform, "checks": ["ouverture GPX par glisser-déposer", "calcul hors connexion",
-                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "heures GPX et curseur avec deux altitudes EN/FR", "dialogue de mise à jour EN/FR sans réseau", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
+                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "mise en page sans chiffres coupés à 1339 × 667", "EN/FR sans recalcul", "heures GPX et curseur avec deux altitudes EN/FR", "dialogue de mise à jour EN/FR sans réseau", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
                   "resultat_synthetique": result.summary()}
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()

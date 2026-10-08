@@ -22,6 +22,52 @@ from gpx2elev.service import Result, calculate
 
 
 class UiTests(unittest.TestCase):
+    def test_short_wide_windows_keep_metrics_readable_and_chart_controls_separate(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        prepared = prepare(parse_gpx(SYNTHETIC_GPX))
+        values = 100 + .1 * prepared.segments[0].distance
+        result = Result('screen.gpx', prepared, Series(Source.IGN, values, True, []), compute(prepared, values))
+        with tempfile.TemporaryDirectory() as directory:
+            window = MainWindow(directory, restore=False)
+            window.show_result(result)
+            window.show()
+            try:
+                for language in (0, 1):
+                    window.language_picker.setCurrentIndex(language)
+                    texts = [label.text() for label in (window.up, window.down, window.length)]
+                    for width, height in ((1000, 820), (1339, 667), (1600, 900), (1000, 600), (1000, 820)):
+                        with self.subTest(language=language, width=width, height=height):
+                            window.resize(width, height)
+                            app.processEvents()
+                            for label, text in zip((window.up, window.down, window.length), texts):
+                                self.assertEqual(label.text(), text)
+                                self.assertGreaterEqual(label.height(), label.fontMetrics().height())
+                                self.assertGreaterEqual(label.width(), label.fontMetrics().horizontalAdvance(text))
+                                frame = label.parentWidget()
+                                labels = [frame.layout().itemAt(i).widget() for i in range(3)]
+                                for first, second in zip(labels, labels[1:]):
+                                    self.assertLess(first.geometry().bottom(), second.geometry().top())
+                            self.assertLess(window.chart.geometry().bottom(), window.range_label.geometry().top())
+                            self.assertLess(window.chart.geometry().bottom(), window.fullscreen_button.geometry().top())
+                            if height < 800:
+                                self.assertGreater(window.scroll_area.verticalScrollBar().maximum(), 0)
+                                window.scroll_area.ensureWidgetVisible(window.status)
+                                app.processEvents()
+                                status = window.status.mapTo(window.scroll_area.viewport(), QPoint())
+                                self.assertGreaterEqual(status.y(), 0)
+                                self.assertLessEqual(status.y() + window.status.height(), window.scroll_area.viewport().height())
+                            self.assertIs(window.result, result)
+                    window.showMaximized()
+                    app.processEvents()
+                    for label in (window.up, window.down, window.length):
+                        self.assertGreaterEqual(label.height(), label.fontMetrics().height())
+                    self.assertLess(window.chart.geometry().bottom(), window.fullscreen_button.geometry().top())
+                    window.showNormal()
+                    app.processEvents()
+            finally:
+                window.close()
+                app.processEvents()
+
     def test_click_reads_time_and_both_altitudes_without_turning_a_drag_into_selection(self):
         app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
         from gpx2elev.core import parse_time
@@ -125,7 +171,7 @@ class UiTests(unittest.TestCase):
             QTest.mouseClick(window.fullscreen_exit, Qt.MouseButton.LeftButton)
             app.processEvents()
             self.assertIsNone(window.chart_fullscreen)
-            self.assertIs(chart.parentWidget(), window.centralWidget())
+            self.assertIs(chart.parentWidget(), window.scroll_area.widget())
             self.assertEqual(chart.view, zoomed)
             self.assertTrue(chart.isVisible())
             window.open_chart_fullscreen()

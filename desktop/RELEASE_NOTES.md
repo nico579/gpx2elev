@@ -1,25 +1,23 @@
-# gpx2elev 0.3.5 — Heure GPX et curseur / GPX time and chart cursor
+# gpx2elev 0.3.6 — Affichage Windows corrigé / Windows layout fix
 
 **FR**
 
-- **Heure locale GPX sur l'axe horizontal**, en complément de la distance, sur Android et ordinateur. Les heures absentes ou invalides sont indiquées par **—** ; l'affichage ne relie pas des horodatages manquants, des segments distincts ou une horloge qui recule.
-- **Curseur vertical au clic ou au toucher** : distance et heure sur l'axe horizontal, altitude du terrain lissé et altitude de la mesure GPX. Les arrêts conservent les mesures originales ; au zoom entre deux points, une lecture interpolée est identifiée par **GPX interpolé**.
-- **Sélection conservée** au zoom, au déplacement, au passage en plein écran et au retour, ainsi qu'au changement **FR/EN**. Les libellés, nombres et dates suivent la langue choisie. Glisser continue à déplacer la vue.
-- Les fonctions de la version précédente sont incluses : **courbes terrain/GPX superposées**, **zoom et déplacement**, **plein écran**, **menu de vérification et d'installation des mises à jour**, et les **huit correctifs** de l'audit.
+- **Chiffres de dénivelé et de distance entièrement lisibles** après agrandissement ou maximisation de la fenêtre. Sur les écrans peu hauts, notamment avec la mise à l'échelle Windows, la page défile au lieu de comprimer les cartes et couper les chiffres.
+- **Commandes du graphique séparées de la courbe et de ses axes**, sans chevauchement. Le zoom, le déplacement, le curseur, le plein écran et le changement FR/EN restent disponibles.
+- Les fonctions de la 0.3.5 sont incluses : courbes terrain/GPX superposées, heure locale GPX sur l'axe horizontal, curseur vertical avec distance, heure et deux altitudes, et menu de mises à jour.
 
-Depuis la **0.3.4**, utiliser **Mises à jour** dans l'application pour installer cette version. Les versions plus anciennes sans ce menu nécessitent une installation manuelle. Android conserve l'identifiant `com.nico.gpx2elev` et le certificat de signature ; les GPX et réglages sont préservés lors de la mise à jour. Extraire les bundles bureau avant de les lancer et conserver le nom du dossier `gpx2elev` (`gpx2elev.app` sur macOS).
+Utiliser **Mises à jour** dans l'application pour installer la **0.3.6** depuis la 0.3.4 ou la 0.3.5. Les versions plus anciennes sans ce menu nécessitent une installation manuelle. Extraire les bundles bureau avant de les lancer et conserver le nom du dossier `gpx2elev` (`gpx2elev.app` sur macOS). Les GPX et réglages sont conservés ; l'identifiant et le certificat Android restent identiques.
 
 **EN**
 
-- **GPX local time on the horizontal axis**, alongside distance, on Android and desktop. Missing or invalid times appear as **—**; time ticks do not bridge missing timestamps, separate segments or a clock reversal.
-- **Vertical cursor on click or tap**: distance and time on the horizontal axis, smoothed terrain elevation and the GPX measurement. Original measurements at stops are retained; when zooming between observations, **Interpolated GPX** identifies an interpolated reading.
-- **Selection survives** zooming, panning, entering and leaving full screen, and **FR/EN** changes. Labels, numbers and dates follow the selected language. Dragging continues to pan the view.
-- Previous features are included: **overlaid terrain/GPX curves**, **zoom and pan**, **full screen**, **manual update checks and installation**, and the **eight audit fixes**.
+- **Elevation gain, loss and distance remain fully readable** after resizing or maximizing the window. On shorter screens, including scaled Windows displays, the page scrolls instead of compressing the cards and clipping their numbers.
+- **Chart controls stay separate from the curve and its axes**, without overlap. Zoom, pan, the cursor, full screen and FR/EN switching remain available.
+- All 0.3.5 features are included: overlaid terrain/GPX curves, GPX local time on the horizontal axis, a vertical cursor with distance, time and both elevations, and the update menu.
 
-From **0.3.4**, use **Updates** in the application to install this version. Older versions without that menu require a manual upgrade. Android retains the `com.nico.gpx2elev` identifier and signing certificate; GPX tracks and settings are preserved during the update. Extract desktop bundles before launching and retain the folder name `gpx2elev` (`gpx2elev.app` on macOS).
+Use **Updates** in the application to install **0.3.6** from 0.3.4 or 0.3.5. Older versions without that menu require a manual upgrade. Extract desktop bundles before launching and retain the folder name `gpx2elev` (`gpx2elev.app` on macOS). GPX tracks and settings are preserved; the Android identifier and signing certificate are unchanged.
 
-**Fichiers / Assets** : APK Android, Windows x64, Linux x64, macOS Intel et Apple Silicon, tous en **0.3.5** / all at **0.3.5**. Tests, contrôles des exécutables natifs, certificat Android et SHA-256 vérifiés avant publication / tests, native executable checks, Android certificate and SHA-256 verified before publication. Rapports joints / verification reports included. Les applications macOS ne sont pas notarisées / macOS apps are not notarized.
+**Fichiers / Assets** : APK Android, Windows x64, Linux x64, macOS Intel et Apple Silicon, tous en **0.3.6** / all at **0.3.6**. Tests, contrôles des exécutables natifs, certificat Android et SHA-256 vérifiés avant publication / tests, native executable checks, Android certificate and SHA-256 verified before publication. Rapports joints / verification reports included. Les applications macOS ne sont pas notarisées / macOS apps are not notarized.
 
 Protocole numérique inchangé / calculation protocol unchanged : **pas 5 m / 5 m spacing, gaussienne / Gaussian σ = 20 m, hystérésis / hysteresis 2 m**.
 
-[Audit détaillé et tests de régression / Detailed audit and regression tests](https://github.com/nico579/gpx2elev/blob/v0.3.5/AUDIT_CODE.md).
+[Audit détaillé et tests de régression / Detailed audit and regression tests](https://github.com/nico579/gpx2elev/blob/v0.3.6/AUDIT_CODE.md).

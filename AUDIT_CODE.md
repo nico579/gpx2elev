@@ -181,6 +181,14 @@ La validation locale des ajouts comporte **50 tests bureau (48 réussis, 2 ignor
 
 La CI de release reconstruit cette version pour Android et les quatre plateformes bureau. Chaque exécutable bureau distribué vérifie aussi hors connexion l'heure GPX, les deux altitudes et leur traduction dans le contrôle natif. Les rapports et empreintes sont joints à la release.
 
+## Correctif de mise en page de la version 0.3.6
+
+La maximisation Windows peut fournir une fenêtre large mais moins haute que la fenêtre initiale, notamment avec la mise à l'échelle de l'écran. Le contenu exigeait 805 pixels de hauteur dans la reproduction : à 1339 × 667, les valeurs de dénivelé recevaient seulement 13 pixels pour une police de 51 pixels. Les chiffres étaient coupés et les commandes du graphique se chevauchaient.
+
+Le contenu conserve désormais sa taille minimale dans une zone défilante. Les valeurs des trois cartes gardent la hauteur requise par leur police et les colonnes partagent l'espace disponible. Une fenêtre peu haute permet d'atteindre les commandes inférieures par défilement. Le graphique est replacé dans ce même contenu après le plein écran ; ses interactions et la sélection sont conservées.
+
+Validation locale : **51 tests bureau, 49 réussis et 2 ignorés**, sans échec. La régression vérifie les chiffres, les séparations entre libellés, l'absence de chevauchement avec le graphique, l'accès au bas de page, les redimensionnements et la maximisation, en FR et EN. Les **11 tests d'interface** passent également avec `QT_SCALE_FACTOR=1.5`. Le contrôle des exécutables natifs distribué avec chaque bundle vérifie aussi la mise en page à **1339 × 667**.
+
 ## Suite proposée
 
 Les correctifs B1–B8 sont validés. Les travaux suivants restent les optimisations proposées : export CSV asynchrone, traductions précompilées, lecture XML progressive, puis interpolation et mémoire des rasters après mesure des gains. Ils ne sont pas inclus dans cette série de corrections.

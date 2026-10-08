@@ -7,8 +7,8 @@ import numpy as np
 from PySide6.QtCore import QEvent, QLocale, QPointF, QRectF, QStandardPaths, Qt, QThread, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QFontDatabase, QIcon, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFileDialog, QFrame,
-    QGridLayout, QHBoxLayout, QLabel, QMainWindow, QMessageBox, QProgressBar,
-    QPushButton, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
+    QGridLayout, QHBoxLayout, QLabel, QLayout, QMainWindow, QMessageBox, QProgressBar,
+    QPushButton, QScrollArea, QSizePolicy, QTextBrowser, QVBoxLayout, QWidget)
 
 from . import __version__
 from .core import Profile, distances
@@ -472,12 +472,20 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(f"gpx2elev · {__version__}")
         self.setWindowIcon(app_icon())
         self.resize(1000, 820)
-        self.setMinimumSize(780, 700)
+        self.setMinimumSize(780, 480)
         self.setAcceptDrops(True)
         self.setStyleSheet(STYLE)
         main = QWidget(objectName="main")
-        self.setCentralWidget(main)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setWidget(main)
+        self.setCentralWidget(self.scroll_area)
         layout = QVBoxLayout(main)
+        self.content_layout = layout
+        # Maximizing can provide less height than the initial window on scaled displays.
+        # Keep the content's minimum size and scroll instead of compressing its text.
+        layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
         layout.setContentsMargins(28, 22, 28, 20)
         layout.setSpacing(12)
         header = QHBoxLayout()
@@ -647,7 +655,7 @@ class MainWindow(QMainWindow):
         dialog = QDialog(self)
         dialog.setWindowTitle(self.tr("Profil d'altitude"))
         dialog.setModal(True)
-        self.chart_slot = self.centralWidget().layout().indexOf(self.chart)
+        self.chart_slot = self.content_layout.indexOf(self.chart)
         self.chart_fullscreen = dialog
         layout = QVBoxLayout(dialog)
         layout.setContentsMargins(20, 16, 20, 16)
@@ -676,7 +684,7 @@ class MainWindow(QMainWindow):
         dialog, self.chart_fullscreen = self.chart_fullscreen, None
         if dialog is None:
             return
-        self.centralWidget().layout().insertWidget(self.chart_slot, self.chart, 1)
+        self.content_layout.insertWidget(self.chart_slot, self.chart, 1)
         self.chart.show()
         dialog.deleteLater()
         self.update_chart_controls()
@@ -742,9 +750,11 @@ class MainWindow(QMainWindow):
         box.addWidget(label)
         value = LanguageLabel(initial)
         value.setFont(QFont(self.font().family(), 28, QFont.Weight.Bold))
+        value.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         box.addWidget(value)
         box.addWidget(LanguageLabel(footer, objectName="subtitle"))
         layout.addWidget(frame, 0, column)
+        layout.setColumnStretch(column, 1)
         return value
 
     def choose(self):

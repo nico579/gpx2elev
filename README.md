@@ -6,11 +6,11 @@
 
 **gpx2elev** estime le dénivelé positif (D+), le dénivelé négatif (D−) et le profil d'altitude d'une trace GPX. L'application Android est développée en Kotlin et Jetpack Compose.
 
-[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.3.5**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
+[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.3.6**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
 
 ## Utilisation
 
-Android 0.3.5 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
+Android 0.3.6 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
 
 Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement la langue et mémorise le choix. Au premier lancement, la langue du système détermine le choix : français pour un système français, anglais sinon. Les nombres suivent la langue choisie ; les calculs et les schémas CSV restent identiques.
 
