@@ -7,9 +7,13 @@ import org.xml.sax.SAXNotRecognizedException
 import org.xml.sax.SAXNotSupportedException
 import org.xml.sax.ext.DefaultHandler2
 import java.io.InputStream
+import java.time.OffsetDateTime
+import java.time.Instant
+import java.time.format.DateTimeParseException
 import javax.xml.parsers.SAXParserFactory
 
 object GpxParser {
+    private val timePattern = Regex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,9})?(?:Z|[+-]\\d{2}:\\d{2})")
     fun parse(input: InputStream): Track {
         val handler = Handler()
         val reader = SAXParserFactory.newInstance().apply { isNamespaceAware = true }.newSAXParser().xmlReader
@@ -37,6 +41,7 @@ object GpxParser {
         private var segment: MutableList<TrackPoint>? = null
         private var point: GeoPoint? = null
         private var elevation: Double? = null
+        private var time: Instant? = null
         private var count = 0
         private var text = StringBuilder()
         private fun supported(uri: String) = uri.isEmpty() || uri == "http://www.topografix.com/GPX/1/1" || uri == "http://www.topografix.com/GPX/1/0"
@@ -47,6 +52,7 @@ object GpxParser {
         private fun atSegment() = atPath("gpx", "trk", "trkseg") || atPath("gpx", "rte")
         private fun atPoint() = atPath("gpx", "trk", "trkseg", "trkpt") || atPath("gpx", "rte", "rtept")
         private fun atElevation() = atPath("gpx", "trk", "trkseg", "trkpt", "ele") || atPath("gpx", "rte", "rtept", "ele")
+        private fun atTime() = atPath("gpx", "trk", "trkseg", "trkpt", "time") || atPath("gpx", "rte", "rtept", "time")
 
         override fun startElement(uri: String, localName: String, qName: String, attributes: Attributes) {
             val name = if (localName.isNotEmpty()) localName else qName.substringAfter(':')
@@ -67,20 +73,25 @@ object GpxParser {
                     }
                     point = GeoPoint(lat, lon)
                     elevation = null
+                    time = null
                 }
-                atElevation() -> text = StringBuilder()
+                atElevation() || atTime() -> text = StringBuilder()
             }
         }
 
         override fun characters(ch: CharArray, start: Int, length: Int) {
-            if (atElevation() && text.length < 128) text.append(ch, start, minOf(length, 128 - text.length))
+            if ((atElevation() || atTime()) && text.length < 128) text.append(ch, start, minOf(length, 128 - text.length))
         }
 
         override fun endElement(uri: String, localName: String, qName: String) {
             when {
                 atElevation() -> elevation = text.toString().trim().toDoubleOrNull()?.takeIf { it.isFinite() }
+                atTime() -> {
+                    val value = text.toString().trim()
+                    time = if (timePattern.matches(value)) try { OffsetDateTime.parse(value).toInstant() } catch (_: DateTimeParseException) { null } else null
+                }
                 atPoint() -> {
-                    point?.let { segment?.add(TrackPoint(it, elevation)) }
+                    point?.let { segment?.add(TrackPoint(it, elevation, time)) }
                     point = null
                 }
                 atSegment() -> {

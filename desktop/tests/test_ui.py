@@ -22,6 +22,58 @@ from gpx2elev.service import Result, calculate
 
 
 class UiTests(unittest.TestCase):
+    def test_click_reads_time_and_both_altitudes_without_turning_a_drag_into_selection(self):
+        app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
+        from gpx2elev.core import parse_time
+        data = SYNTHETIC_GPX.replace(b'<ele>100</ele>', b'<ele>100</ele><time>2026-10-08T10:00:00Z</time>') \
+            .replace(b'<ele>110</ele>', b'<ele>110</ele><time>2026-10-08T10:05:00Z</time>') \
+            .replace(b'<ele>120</ele>', b'<ele>120</ele><time>2026-10-08T10:10:00Z</time>')
+        prepared = prepare(parse_gpx(data))
+        values = np.full(prepared.sample_count, 100.)
+        result = Result('timed.gpx', prepared, Series(Source.IGN, values, True, []), compute(prepared, values))
+        with tempfile.TemporaryDirectory() as directory:
+            window = MainWindow(directory, restore=False)
+            window.language_picker.setCurrentIndex(0)
+            window.show_result(result)
+            window.show()
+            app.processEvents()
+            chart = window.chart
+            view = chart.view
+            QTest.mouseClick(chart, Qt.MouseButton.LeftButton, pos=chart.chart_rect().center().toPoint())
+            point = chart.selection
+            self.assertEqual(point.time, parse_time('2026-10-08T10:05:00Z'))
+            self.assertEqual(point.gpx, 110.)
+            self.assertAlmostEqual(point.terrain, 100., places=9)
+            self.assertEqual(chart.view, view)
+            chart.zoom(2)
+            center = chart.chart_rect().center().toPoint()
+            QTest.mousePress(chart, Qt.MouseButton.LeftButton, pos=center)
+            QTest.mouseMove(chart, center + QPoint(40, 15))
+            QTest.mouseRelease(chart, Qt.MouseButton.LeftButton, pos=center + QPoint(40, 15))
+            self.assertIs(chart.selection, point)
+            self.assertNotEqual(chart.view, chart.bounds)
+            QTest.mouseClick(window.fullscreen_button, Qt.MouseButton.LeftButton)
+            app.processEvents()
+            self.assertIs(chart.selection, point)
+            window.language_picker.setCurrentIndex(1)
+            self.assertIn('Local time:', chart.accessibleDescription())
+            self.assertIn('GPX measurement: 110.0 m', chart.selection_text())
+            self.assertFalse(chart.grab().isNull())
+            QTest.mouseClick(window.fullscreen_exit, Qt.MouseButton.LeftButton)
+            app.processEvents()
+            self.assertIs(chart.selection, point)
+            chart.reset_view()
+            rect = chart.chart_rect()
+            chart.zoom(8, QPointF(rect.left() + rect.width() * .25, rect.center().y()))
+            QTest.mouseClick(chart, Qt.MouseButton.LeftButton, pos=chart.chart_rect().center().toPoint())
+            self.assertTrue(chart.selection.interpolated)
+            self.assertTrue(chart.view[0] <= chart.selection.distance <= chart.view[1])
+            self.assertIn('Interpolated GPX:', chart.selection_text())
+            chart.result = None
+            self.assertIsNone(chart.selection)
+            self.assertEqual(chart.accessibleDescription(), '')
+            window.close()
+
     def test_overflowing_gpx_display_range_keeps_terrain_chart_usable(self):
         app = DesktopApplication.instance() or DesktopApplication(["gpx2elev-test"])
         prepared = prepare(Track([Segment(np.array([[45.0, 5.0], [45.001, 5.0]]), np.array([-1e308, 1e308]))]))

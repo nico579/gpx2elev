@@ -1,6 +1,7 @@
 package com.nico.gpx2elev.core
 
 import kotlin.math.*
+import java.time.Instant
 
 object Protocol {
     const val STEP = 5.0
@@ -13,7 +14,7 @@ object Protocol {
 }
 
 data class GeoPoint(val lat: Double, val lon: Double)
-data class TrackPoint(val position: GeoPoint, val elevation: Double?)
+data class TrackPoint(val position: GeoPoint, val elevation: Double?, val time: Instant? = null)
 data class Track(val segments: List<List<TrackPoint>>) {
     val pointCount get() = segments.sumOf { it.size }
 }

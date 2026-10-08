@@ -8,7 +8,7 @@
 
 ## Usage
 
-Android 0.3.4 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
+Android 0.3.5 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
 
 1. Install the APK on Android 8.0 or later, or extract the desktop bundle for your platform.
 2. Select **EN / FR** at the top of the screen. The selection is saved. The first launch uses French on a French-language device, and English otherwise.
@@ -23,6 +23,8 @@ Android accepts GPX, XML, text and binary MIME types through `EXTRA_STREAM`, `Cl
 The last valid track is restored when the app opens. Complete profiles are cached with integrity checks. Previously cached tracks can be calculated offline while their profiles remain cached. Profile and tile caches are limited to 64 MB and 512 MB respectively.
 
 **Full screen** expands the chart; **Exit full screen** or Android's Back button restores the normal view. Zoom and pan are preserved. If saving the profile cache fails, the result remains available and a message explains that offline use cannot be guaranteed.
+
+The horizontal axis shows distance and **local time from GPX observations**. Tap the chart to place a vertical cursor showing distance, time, smoothed terrain elevation and the GPX measurement. When zooming between observations, **Interpolated GPX** identifies an interpolated reading. Missing or invalid times appear as **—**; time ticks do not bridge missing timestamps, separate segments or a clock reversal. Zooming, full screen and FR/EN changes preserve the selection.
 
 **Menu ⋮ → Updates** manually checks GitHub for the latest official stable release. The version, download size and release notes appear before **Download and install**. The APK's SHA-256, application identifier, version and signing certificate are verified. **Install** then opens the Android installer; if needed, **Allow installation** opens settings to authorize gpx2elev. Return to the application after changing this setting. Downloads can be cancelled, and installation waits for calculations to finish. Updates are never checked automatically. Previously published versions without this menu require one manual upgrade first.
 
@@ -67,7 +69,7 @@ Release APKs are built by GitHub Actions. For local development, open the reposi
 
 APK output: `app/build/outputs/apk/release/app-release.apk`. Local releases use the project's development key in `app/debug.keystore`, excluded from Git. Keep that key locally for compatible updates. Clones without it use Gradle's default Android development key. The OBD2 Dash key is not used.
 
-Android and Python share version **0.3.4**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
+Android and Python share version **0.3.5**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
 
 For a new release, update `VERSION` and `desktop/gpx2elev/assets/version.txt`, increment the Android `versionCode`, and push the matching tag. Version mismatches block publication.
 

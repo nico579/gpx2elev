@@ -268,6 +268,21 @@ PAIRS.update({
     "Une installation déjà lancée ne peut pas être annulée.": "An installation that has already started cannot be cancelled.",
 })
 
+PAIRS.update({
+    "Distance · Heure locale": "Distance · Local time",
+    "Distance · Heures GPX absentes.": "Distance · GPX timestamps missing.",
+    "Distance : {0} km": "Distance: {0} km",
+    "Heure locale : ": "Local time: ",
+    "Terrain lissé : {0} m": "Smoothed terrain: {0} m",
+    "Mesure GPX : {0} m": "GPX measurement: {0} m",
+    "GPX interpolé : {0} m": "Interpolated GPX: {0} m",
+    "Touchez la courbe pour lire les valeurs.": "Tap the chart to read its values.",
+    "Lire les valeurs de la courbe": "Read chart values",
+    "Pincez pour zoomer, glissez pour déplacer, touchez pour lire les valeurs.": "Pinch to zoom, drag to pan, tap to read values.",
+    "Molette : zoom · glisser : déplacer · clic : lire les valeurs · double-clic : vue complète":
+        "Mouse wheel: zoom · drag: pan · click: read values · double-click: full view",
+})
+
 if __name__ == '__main__':
     root = Path(__file__).resolve().parents[1]
     data = json.dumps(PAIRS, ensure_ascii=False, indent=2) + '\n'

@@ -6,12 +6,12 @@ Application Python de bureau, avec des bundles autonomes incluant Python, Qt et 
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.3.4.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.4, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.3.5.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.5, construite sur GitHub Actions.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.4-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.3.4-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.5-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.3.5-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
 
 Le sélecteur **FR / EN** de l’en-tête change la langue immédiatement et mémorise le choix. Les nombres affichés suivent la langue ; les CSV gardent leur schéma et leurs valeurs.
@@ -23,6 +23,8 @@ Le premier calcul nécessite Internet. Le modèle, le D+, le D−, la distance, 
 Le graphique superpose le terrain lissé (vert) et les mesures originales du GPX (orange pointillé), avec une échelle commune. La molette zoome autour du pointeur ; glisser déplace la vue. Les boutons **Zoom +**, **Zoom −** et **Vue complète** sont aussi disponibles. Un double-clic rétablit la vue complète. Les segments restent séparés et les altitudes manquantes interrompent la courbe GPX.
 
 **Plein écran** agrandit le graphique ; **Quitter le plein écran** ou **Échap** restaure la fenêtre normale. Le zoom et la position sont conservés. Un échec d'enregistrement du cache laisse le résultat disponible et affiche un avertissement sur son utilisation hors connexion.
+
+L'axe horizontal affiche aussi l'**heure locale issue des points GPX**. Un clic place une barre verticale et affiche la distance, l'heure et les altitudes du terrain lissé et du GPX. Un glisser continue de déplacer la vue. La sélection reste en place au zoom, en plein écran et au changement FR/EN. Au zoom entre deux points, **GPX interpolé** identifie une valeur interpolée. Les heures absentes ou invalides apparaissent **—** ; les graduations horaires ne traversent pas les heures manquantes, les limites de segments ou les retours en arrière de l'horloge.
 
 ## Mises à jour
 

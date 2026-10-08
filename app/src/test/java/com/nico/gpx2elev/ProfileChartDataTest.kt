@@ -5,10 +5,83 @@ import com.nico.gpx2elev.ui.profileChartData
 import com.nico.gpx2elev.ui.ProfileViewport
 import com.nico.gpx2elev.ui.transformProfileViewport
 import com.nico.gpx2elev.ui.visibleProfilePoints
+import com.nico.gpx2elev.ui.profileTimeAt
+import com.nico.gpx2elev.ui.profileTimeLabel
+import com.nico.gpx2elev.ui.selectProfilePoint
+import java.time.Instant
+import java.time.ZoneOffset
 import org.junit.Assert.*
 import org.junit.Test
 
 class ProfileChartDataTest {
+    @Test fun parserReadsAbsoluteTimesOffsetsAndIgnoresMissingOrForeignTimes() {
+        val xml = """<gpx xmlns="http://www.topografix.com/GPX/1/1"><trk><trkseg>
+            <trkpt lat="45" lon="5"><time>2026-10-08T10:00:00.123Z</time><extensions><time>1999-01-01T00:00:00Z</time></extensions></trkpt>
+            <trkpt lat="45" lon="5.001"><time>2026-10-08T12:00:00.123+02:00</time></trkpt>
+            <trkpt lat="45" lon="5.002"><time>2026-10-08T10:00:00</time></trkpt>
+            <trkpt lat="45" lon="5.003"><x:time xmlns:x="urn:foreign">2026-10-08T10:00:00Z</x:time></trkpt>
+            </trkseg></trk></gpx>"""
+        val points = GpxParser.parse(xml.byteInputStream()).segments.single()
+        assertEquals(Instant.parse("2026-10-08T10:00:00.123Z"), points[0].time)
+        assertEquals(points[0].time, points[1].time)
+        assertNull(points[2].time)
+        assertNull(points[3].time)
+    }
+
+    @Test fun timeTicksNeverBridgeMissingTimesSegmentsOrClockReversals() {
+        val start = Instant.parse("2026-10-08T10:00:00Z")
+        val first = listOf(point(5.0, 10.0).copy(time = start), point(5.001, 20.0).copy(time = start.plusSeconds(60)), point(5.002, 30.0))
+        val second = listOf(point(6.0, 40.0).copy(time = start.plusSeconds(120)), point(6.001, 50.0).copy(time = start.plusSeconds(90)))
+        val prepared = ElevationMath.prepare(Track(listOf(first, second)))
+        val chart = profileChartData(prepared, ElevationMath.compute(prepared, DoubleArray(prepared.sampleCount) { 100.0 }).profiles)
+        val x = chart.observations.map { it.distance }
+        assertEquals(start.plusSeconds(30), profileTimeAt(chart, x[1] / 2))
+        assertNull(profileTimeAt(chart, (x[1] + x[2]) / 2))
+        assertEquals(start.plusSeconds(120), profileTimeAt(chart, x[3]))
+        assertNull(profileTimeAt(chart, (x[3] + x[4]) / 2))
+        assertNull(profileTimeAt(chart, -1.0))
+        assertNull(profileTimeAt(chart, prepared.length + 1))
+    }
+
+    @Test fun cursorKeepsRecordedStopsAndUsesTheMatchingTerrainSegment() {
+        val start = Instant.parse("2026-10-08T10:00:00Z")
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(point(4.0, 9999.0)),
+            listOf(point(5.0, 10.0).copy(time = start), point(5.0, 20.0).copy(time = start.plusSeconds(60)), point(5.001, 30.0).copy(time = start.plusSeconds(120))),
+            listOf(point(6.0, 400.0).copy(time = start.plusSeconds(180)), point(6.001, 500.0)))))
+        val split = prepared.segments[0].distance.size
+        val chart = profileChartData(prepared, ElevationMath.compute(prepared, DoubleArray(prepared.sampleCount) { if (it < split) 100.0 else 200.0 }).profiles)
+        val first = selectProfilePoint(chart, 0.0, 11.0)!!
+        assertEquals(10.0, first.gpx!!, 0.0)
+        assertEquals(start, first.time)
+        assertEquals(100.0, first.terrain!!, 1e-9)
+        assertNull(selectProfilePoint(chart, 0.0, 9999.0)!!.terrain)
+        val second = selectProfilePoint(chart, chart.observations[4].distance, 400.0)!!
+        assertEquals(400.0, second.gpx!!, 0.0)
+        assertEquals(start.plusSeconds(180), second.time)
+        assertEquals(200.0, second.terrain!!, 1e-9)
+        val middle = prepared.segments[0].distance.last() / 2
+        val interpolated = selectProfilePoint(chart, middle, 100.0, ProfileViewport(middle - 1, middle + 1, 0.0, 200.0))!!
+        assertTrue(interpolated.interpolated)
+        assertEquals(middle, interpolated.distance, 0.0)
+        assertEquals(25.0, interpolated.gpx!!, 1e-9)
+        assertEquals(start.plusSeconds(90), interpolated.time)
+    }
+
+    @Test fun missingValuesAndLocalDatesAcrossMidnightStayExplicit() {
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(point(5.0, null), point(5.001, null)))))
+        val computed = ElevationMath.compute(prepared, DoubleArray(prepared.sampleCount) { 100.0 })
+        val chart = profileChartData(prepared, computed.profiles)
+        val point = selectProfilePoint(chart, 0.0, 100.0)!!
+        assertEquals(100.0, point.terrain!!, 1e-9)
+        assertNull(point.time)
+        assertNull(point.gpx)
+        assertEquals("—", profileTimeLabel(null))
+        val instant = Instant.parse("2026-10-08T23:30:00Z")
+        assertEquals("09/10/2026 01:30:00", profileTimeLabel(instant, seconds = true, date = true, zone = ZoneOffset.ofHours(2)))
+        assertEquals("2026-10-09 01:30:00", profileTimeLabel(instant, seconds = true, date = true, zone = ZoneOffset.ofHours(2), language = "en"))
+        assertEquals(0.0, computed.gain.up, 1e-9)
+    }
+
     private fun point(longitude: Double, altitude: Double?) = TrackPoint(GeoPoint(45.0, longitude), altitude)
 
     @Test fun nativeObservationsKeepStopsAndGapsWithoutConnectingSegments() {

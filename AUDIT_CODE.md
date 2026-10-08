@@ -173,6 +173,14 @@ Les gains des propositions 2–5 n'ont pas été mesurés. Les valider avec des 
 
 Aucun défaut supplémentaire n'a été confirmé dans le calcul nominal des arrêts, des segments séparés, de l'antiméridien ou du lissage de la référence. Cela ne constitue pas une preuve d'absence de tous les bugs.
 
+## Ajouts de la version 0.3.5
+
+L'heure locale des points GPX est conservée sur Android et bureau et affichée sur l'axe horizontal. Le clic ou le toucher sélectionne une mesure originale et affiche un curseur vertical, la distance, l'heure et les deux altitudes. Au zoom entre des observations, la lecture interpolée est signalée. Les heures manquantes, les segments distincts et les horloges qui reculent ne sont pas reliés. Le zoom, le déplacement, le plein écran et le changement FR/EN conservent la sélection, sans changer le protocole numérique.
+
+La validation locale des ajouts comporte **50 tests bureau (48 réussis, 2 ignorés)** et **84 tests Android (82 réussis, 2 ignorés)**, sans échec. Les quatre tests ignorés correspondent aux mêmes restrictions Windows et contrôle réseau facultatif que précédemment : deux liens symboliques côté bureau, FileProvider et services publics côté Android. Lint Release : **0 erreur** ; APK Release compilé. Les tests couvrent le parsing UTC/fuseaux, les heures absentes ou invalides, les arrêts, les segments, le passage de minuit, le curseur, le zoom entre points, le plein écran et FR/EN. Les deux catalogues partagent **257 traductions** identiques, sans valeur vide.
+
+La CI de release reconstruit cette version pour Android et les quatre plateformes bureau. Chaque exécutable bureau distribué vérifie aussi hors connexion l'heure GPX, les deux altitudes et leur traduction dans le contrôle natif. Les rapports et empreintes sont joints à la release.
+
 ## Suite proposée
 
 Les correctifs B1–B8 sont validés. Les travaux suivants restent les optimisations proposées : export CSV asynchrone, traductions précompilées, lecture XML progressive, puis interpolation et mémoire des rasters après mesure des gains. Ils ne sont pas inclus dans cette série de corrections.

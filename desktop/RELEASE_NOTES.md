@@ -1,27 +1,25 @@
-# gpx2elev 0.3.4 — Plein écran, mises à jour et corrections / Full screen, updates and fixes
+# gpx2elev 0.3.5 — Heure GPX et curseur / GPX time and chart cursor
 
 **FR**
 
-- **Graphique en plein écran** sur Android et ordinateur, avec retour à la fenêtre normale sans perdre le zoom ni la position. Les courbes du terrain lissé et des mesures originales du GPX restent superposées ; zoom et déplacement sont disponibles dans les deux modes.
-- **Mises à jour** depuis le menu **⋮ → Mises à jour** sur Android et le bouton **Mises à jour** sur ordinateur : recherche manuelle de la dernière release stable, notes, téléchargement adapté au système et contrôle SHA-256. Android vérifie aussi l'identifiant, la version et la signature de l'APK avant d'ouvrir l'installateur système. Sur ordinateur, le nouveau bundle passe son contrôle hors connexion avant remplacement et redémarrage ; l'ancienne installation est conservée pour le retour arrière. GPX et réglages sont préservés.
-- **Huit bugs corrigés** : contexte XML GPX, validation des plages HTTP, lecture en fin de raster, récupération des tuiles corrompues, conservation du dernier GPX après un import invalide, résultat conservé si le cache ne peut pas être écrit, nettoyage des fichiers temporaires et robustesse face aux altitudes extrêmes.
+- **Heure locale GPX sur l'axe horizontal**, en complément de la distance, sur Android et ordinateur. Les heures absentes ou invalides sont indiquées par **—** ; l'affichage ne relie pas des horodatages manquants, des segments distincts ou une horloge qui recule.
+- **Curseur vertical au clic ou au toucher** : distance et heure sur l'axe horizontal, altitude du terrain lissé et altitude de la mesure GPX. Les arrêts conservent les mesures originales ; au zoom entre deux points, une lecture interpolée est identifiée par **GPX interpolé**.
+- **Sélection conservée** au zoom, au déplacement, au passage en plein écran et au retour, ainsi qu'au changement **FR/EN**. Les libellés, nombres et dates suivent la langue choisie. Glisser continue à déplacer la vue.
+- Les fonctions de la version précédente sont incluses : **courbes terrain/GPX superposées**, **zoom et déplacement**, **plein écran**, **menu de vérification et d'installation des mises à jour**, et les **huit correctifs** de l'audit.
 
-**Installer cette version manuellement une première fois** pour disposer du bouton de mise à jour. Les mises à jour suivantes pourront être lancées depuis l'application. Extraire les bundles avant de les lancer et conserver le nom du dossier `gpx2elev` (`gpx2elev.app` sur macOS) pour permettre leur remplacement automatique. Android conserve l'identifiant et le certificat de signature de la version 0.3.3 pour une mise à jour directe.
-
-Les profils Android FABDEM et Copernicus sont renouvelés pour écarter les anciennes données non vérifiées ; leur premier recalcul peut nécessiter Internet.
+Depuis la **0.3.4**, utiliser **Mises à jour** dans l'application pour installer cette version. Les versions plus anciennes sans ce menu nécessitent une installation manuelle. Android conserve l'identifiant `com.nico.gpx2elev` et le certificat de signature ; les GPX et réglages sont préservés lors de la mise à jour. Extraire les bundles bureau avant de les lancer et conserver le nom du dossier `gpx2elev` (`gpx2elev.app` sur macOS).
 
 **EN**
 
-- **Full-screen chart** on Android and desktop, returning to the normal window without losing zoom or pan. Smoothed terrain and original GPX measurements remain overlaid; zoom and pan work in both modes.
-- **Updates** through **Menu ⋮ → Updates** on Android and the desktop **Updates** button: manually check the latest stable release, read its notes, download the correct platform asset and verify SHA-256. Android also checks APK identity, version and signing certificate before opening the system installer. Desktop verifies the new bundle offline before replacing and restarting the application; the previous installation is retained for rollback. GPX tracks and settings are preserved.
-- **Eight bugs fixed**: GPX XML context, HTTP range validation, reads near raster EOF, corrupted tile recovery, last-track preservation after invalid imports, valid results retained when cache writes fail, temporary-file cleanup and robustness against extreme elevations.
+- **GPX local time on the horizontal axis**, alongside distance, on Android and desktop. Missing or invalid times appear as **—**; time ticks do not bridge missing timestamps, separate segments or a clock reversal.
+- **Vertical cursor on click or tap**: distance and time on the horizontal axis, smoothed terrain elevation and the GPX measurement. Original measurements at stops are retained; when zooming between observations, **Interpolated GPX** identifies an interpolated reading.
+- **Selection survives** zooming, panning, entering and leaving full screen, and **FR/EN** changes. Labels, numbers and dates follow the selected language. Dragging continues to pan the view.
+- Previous features are included: **overlaid terrain/GPX curves**, **zoom and pan**, **full screen**, **manual update checks and installation**, and the **eight audit fixes**.
 
-**Install this version manually once** to obtain the update button. Future updates can then be started from the application. Extract bundles before launching and retain the folder name `gpx2elev` (`gpx2elev.app` on macOS) for automatic replacement. Android keeps the version 0.3.3 application identifier and signing certificate for direct upgrades.
+From **0.3.4**, use **Updates** in the application to install this version. Older versions without that menu require a manual upgrade. Android retains the `com.nico.gpx2elev` identifier and signing certificate; GPX tracks and settings are preserved during the update. Extract desktop bundles before launching and retain the folder name `gpx2elev` (`gpx2elev.app` on macOS).
 
-Android FABDEM and Copernicus profiles are refreshed to exclude previously unverified data; their first recalculation may need Internet access.
-
-**Fichiers / Assets** : APK Android, Windows x64, Linux x64, macOS Intel et Apple Silicon, tous en **0.3.4** / all at **0.3.4**. Rapports de validation et SHA-256 joints / verification reports and SHA-256 checksums included. Les applications macOS ne sont pas notarisées / macOS apps are not notarized.
+**Fichiers / Assets** : APK Android, Windows x64, Linux x64, macOS Intel et Apple Silicon, tous en **0.3.5** / all at **0.3.5**. Tests, contrôles des exécutables natifs, certificat Android et SHA-256 vérifiés avant publication / tests, native executable checks, Android certificate and SHA-256 verified before publication. Rapports joints / verification reports included. Les applications macOS ne sont pas notarisées / macOS apps are not notarized.
 
 Protocole numérique inchangé / calculation protocol unchanged : **pas 5 m / 5 m spacing, gaussienne / Gaussian σ = 20 m, hystérésis / hysteresis 2 m**.
 
-[Audit détaillé et tests de régression / Detailed audit and regression tests](https://github.com/nico579/gpx2elev/blob/v0.3.4/AUDIT_CODE.md).
+[Audit détaillé et tests de régression / Detailed audit and regression tests](https://github.com/nico579/gpx2elev/blob/v0.3.5/AUDIT_CODE.md).

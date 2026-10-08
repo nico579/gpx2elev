@@ -12,7 +12,7 @@ import rasterio
 from PySide6.QtCore import QMimeData, QPoint, QPointF, Qt, QUrl
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
-from .core import parse_gpx, prepare
+from .core import parse_gpx, parse_time, prepare
 from .providers import ProfileCache, Source
 from .service import export_profile, export_summary
 from .ui import DesktopApplication, MainWindow
@@ -34,7 +34,11 @@ def run_smoke(report_path, fixtures=None):
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         path = root / "test.gpx"
-        path.write_bytes(SYNTHETIC_GPX)
+        data = SYNTHETIC_GPX
+        for altitude, clock in ((100, "10:00:00"), (110, "10:05:00"), (120, "10:10:00")):
+            element = f"<ele>{altitude}</ele>".encode()
+            data = data.replace(element, element + f"<time>2026-10-08T{clock}Z</time>".encode())
+        path.write_bytes(data)
         prepared = prepare(parse_gpx(path))
         ProfileCache(root / "profiles").save(Source.IGN, prepared.coordinates, 100 + .1 * prepared.segments[0].distance)
         window = MainWindow(root, restore=False)
@@ -72,12 +76,18 @@ def run_smoke(report_path, fixtures=None):
             if len(list(csv.DictReader(stream, delimiter=";"))) != prepared.sample_count:
                 raise AssertionError("Profil exporté incomplet.")
         app.processEvents()
+        window.chart.select_at(window.chart.chart_rect().center())
+        selection = window.chart.selection
+        if selection.gpx != 110 or selection.time != parse_time("2026-10-08T10:05:00Z") or selection.terrain is None:
+            raise AssertionError("Le curseur ne présente pas l'heure GPX et les deux altitudes.")
         window.grab().save(str(report_path.with_suffix(".png")))
         gain = result.computed.gain
         for index, language, caption in ((0, "fr", "Choisir un GPX"), (1, "en", "Choose a GPX")):
             window.language_picker.setCurrentIndex(index)
             if window.import_button.text() != caption or window.result.computed.gain != gain:
                 raise AssertionError("Échec du changement de langue ou résultat modifié.")
+            if window.chart.selection is not selection or ("Mesure GPX :" if language == "fr" else "GPX measurement:") not in window.chart.selection_text():
+                raise AssertionError("Le curseur n'est pas conservé ou traduit.")
             app.processEvents()
             window.grab().save(str(report_path.with_suffix(f".{language}.png")))
             # Exercise lazy updater imports in the frozen executable without accessing the network.
@@ -119,7 +129,7 @@ def run_smoke(report_path, fixtures=None):
         from . import __version__
         report = {"status": "OK", "version": __version__, "frozen": bool(getattr(sys, "frozen", False)),
                   "platform": sys.platform, "checks": ["ouverture GPX par glisser-déposer", "calcul hors connexion",
-                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "dialogue de mise à jour EN/FR sans réseau", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
+                      "profil linéaire conservé", "GPX brut et filtré", "exports CSV", "rendu Qt", "EN/FR sans recalcul", "heures GPX et curseur avec deux altitudes EN/FR", "dialogue de mise à jour EN/FR sans réseau", "taille et suppression du cache", "GeoTIFF GDAL", "WebP Terrarium"],
                   "resultat_synthetique": result.summary()}
         report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         window.close()

@@ -244,5 +244,16 @@
   "Impossible d'ouvrir les réglages d'installation Android.": "Unable to open Android installation settings.",
   "Le programme téléchargé n'a pas réussi sa vérification.": "The downloaded application failed verification.",
   "La mise à jour a échoué. L'ancienne version a été restaurée.": "The update failed. The previous version has been restored.",
-  "Une installation déjà lancée ne peut pas être annulée.": "An installation that has already started cannot be cancelled."
+  "Une installation déjà lancée ne peut pas être annulée.": "An installation that has already started cannot be cancelled.",
+  "Distance · Heure locale": "Distance · Local time",
+  "Distance · Heures GPX absentes.": "Distance · GPX timestamps missing.",
+  "Distance : {0} km": "Distance: {0} km",
+  "Heure locale : ": "Local time: ",
+  "Terrain lissé : {0} m": "Smoothed terrain: {0} m",
+  "Mesure GPX : {0} m": "GPX measurement: {0} m",
+  "GPX interpolé : {0} m": "Interpolated GPX: {0} m",
+  "Touchez la courbe pour lire les valeurs.": "Tap the chart to read its values.",
+  "Lire les valeurs de la courbe": "Read chart values",
+  "Pincez pour zoomer, glissez pour déplacer, touchez pour lire les valeurs.": "Pinch to zoom, drag to pan, tap to read values.",
+  "Molette : zoom · glisser : déplacer · clic : lire les valeurs · double-clic : vue complète": "Mouse wheel: zoom · drag: pan · click: read values · double-click: full view"
 }

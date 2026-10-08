@@ -40,6 +40,36 @@ class AndroidUiTest {
         rule.runOnUiThread { I18n.select("fr") }
     }
 
+    @Test fun tappingChartShowsRecordedTimeAndBothAltitudesAndKeepsSelectionInFullscreen() {
+        val start = java.time.Instant.parse("2026-10-08T10:00:00Z")
+        val prepared = ElevationMath.prepare(Track(listOf(listOf(
+            TrackPoint(GeoPoint(45.0, 5.0), 20.0, start),
+            TrackPoint(GeoPoint(45.0, 5.0005), 600.0, start.plusSeconds(300)),
+            TrackPoint(GeoPoint(45.0, 5.001), 50.0, start.plusSeconds(600)),
+        ))))
+        val values = DoubleArray(prepared.sampleCount) { 100.0 }
+        val result = Result("heures.gpx", prepared, ElevationMath.compute(prepared, values),
+            ElevationSeries(ElevationSource.IGN, values, true, emptyList()), 0L)
+        val description = "Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres"
+        rule.runOnUiThread { rule.activity.setContent { GpxScreen(AppState(result = result), {}, {}, {}, {}, {}) } }
+        rule.onNodeWithContentDescription(description).performScrollTo().performTouchInput { click(center) }
+        rule.onNodeWithText("Terrain lissé : 100,0 m").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithText("Mesure GPX : 600,0 m").assertIsDisplayed()
+        val selected = rule.onNodeWithContentDescription(description).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription]
+        assertTrue(selected.contains("Heure locale : "))
+        assertTrue(selected.contains(com.nico.gpx2elev.ui.profileTimeLabel(start.plusSeconds(300), seconds = true, date = true)))
+        screenshot("profil_curseur_heures")
+        rule.onNodeWithText("Plein écran").performScrollTo().performClick()
+        rule.onNodeWithText("Mesure GPX : 600,0 m").assertIsDisplayed()
+        rule.onNodeWithContentDescription("Zoom avant").performClick()
+        assertEquals(selected, rule.onNodeWithContentDescription(description).fetchSemanticsNode().config[androidx.compose.ui.semantics.SemanticsProperties.StateDescription])
+        rule.runOnUiThread { I18n.select("en") }
+        rule.onNodeWithText("GPX measurement: 600.0 m").assertIsDisplayed()
+        rule.onNodeWithText("Exit full screen").performClick()
+        rule.onNodeWithText("GPX measurement: 600.0 m").performScrollTo().assertIsDisplayed()
+        assertEquals(0.0, result.computed.gain.up, 1e-9)
+    }
+
     private fun chartResult(cacheWarning: String? = null): Result {
         val prepared = ElevationMath.prepare(Track(listOf(listOf(
             TrackPoint(GeoPoint(45.0, 5.0), 20.0), TrackPoint(GeoPoint(45.0, 5.001), 600.0),
@@ -325,7 +355,7 @@ class AndroidUiTest {
         rule.onNodeWithText("Raw sum of elevation changes").performScrollTo().assertIsDisplayed()
         screenshot("comparison_EN")
         rule.onNodeWithText("FR").performClick()
-        rule.onNodeWithText("Somme brute des variations").assertIsDisplayed()
+        rule.onNodeWithText("Somme brute des variations").performScrollTo().assertIsDisplayed()
     }
 
     @Test @Config(qualifiers = "w891dp-h411dp-land-mdpi") fun resultInLandscape() {

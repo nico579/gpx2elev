@@ -4,8 +4,10 @@ Independent of the UI, network and operating system. Conventions match
 ElevationMath.kt and the audited Python reference, including segment ends.
 """
 from dataclasses import dataclass
+from datetime import datetime
 import io
 import math
+import re
 from pathlib import Path
 
 from defusedxml import ElementTree as ET
@@ -25,6 +27,7 @@ NAMESPACES = ("", "http://www.topografix.com/GPX/1/0", "http://www.topografix.co
 class Segment:
     coordinates: np.ndarray
     elevations: np.ndarray
+    times: np.ndarray | None = None
 
 
 @dataclass
@@ -99,6 +102,20 @@ def tag_name(tag):
     return tag
 
 
+def parse_time(text):
+    """Optional GPX time as UTC seconds; an unknown offset is not an absolute time."""
+    if text is None:
+        return math.nan
+    text = text.strip()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})", text):
+        return math.nan
+    try:
+        time = datetime.fromisoformat(text)
+        return time.timestamp() if abs(time.utcoffset().total_seconds()) <= 18 * 3600 else math.nan
+    except (ValueError, OverflowError, OSError):
+        return math.nan
+
+
 def parse_gpx(source: Path | bytes) -> Track:
     if isinstance(source, bytes):
         data = source
@@ -122,7 +139,7 @@ def parse_gpx(source: Path | bytes) -> Track:
     segments = []
     count = 0
     for group, point_tag in groups:
-        xy, elevations = [], []
+        xy, elevations, times = [], [], []
         for node in group:
             if tag_name(node.tag) != point_tag:
                 continue
@@ -142,8 +159,10 @@ def parse_gpx(source: Path | bytes) -> Track:
             except (TypeError, ValueError):
                 z = math.nan
             elevations.append(z if math.isfinite(z) else math.nan)
+            time_tag = node.tag.partition("}")[0] + "}time" if node.tag.startswith("{") else "time"
+            times.append(parse_time(next((e.text for e in node if e.tag == time_tag), None)))
         if xy:
-            segments.append(Segment(np.asarray(xy, dtype=float), np.asarray(elevations, dtype=float)))
+            segments.append(Segment(np.asarray(xy, dtype=float), np.asarray(elevations, dtype=float), np.asarray(times)))
     if not any(len(s.coordinates) >= 2 for s in segments):
         raise ValueError("Le GPX ne contient pas de trace ou de route utilisable.")
     return Track(segments)

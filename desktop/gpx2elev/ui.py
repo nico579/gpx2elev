@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog, QFil
 
 from . import __version__
 from .core import Profile, distances
+from .chart_data import ChartObservations, local_time
 from .i18n import translate, number
 from .providers import Cancelled, RANKING, atomic_write
 from .service import calculate, export_profile, export_summary
@@ -92,6 +93,8 @@ class ProfileChart(QWidget):
         super().__init__(parent)
         self._result = None
         self._drag_position = None
+        self._press_position = None
+        self._dragging = False
         self.result = None
         self.setMinimumHeight(170)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -106,6 +109,10 @@ class ProfileChart(QWidget):
         if result is not None and result is self._result:
             return
         self._result = result
+        self.selection = None
+        self.observations = None
+        self.setToolTip("")
+        self.setAccessibleDescription("")
         self.gpx_profiles = []
         self.bounds = self.view = None
         if result is None:
@@ -130,10 +137,11 @@ class ProfileChart(QWidget):
             self.minimum, self.maximum = result.computed.minimum, result.computed.maximum
             margin = max((self.maximum - self.minimum) * .12, 5)
         self.bounds = (0.0, max(result.prepared.length, 1), self.minimum - margin, self.maximum + margin)
+        self.observations = ChartObservations(result.prepared, result.computed.profiles)
         self.reset_view()
 
     def chart_rect(self):
-        return QRectF(65, 42, max(1, self.width() - 88), max(1, self.height() - 82))
+        return QRectF(65, 42, max(1, self.width() - 88), max(1, self.height() - 106))
 
     @staticmethod
     def clamp_axis(start, end, low, high):
@@ -144,6 +152,8 @@ class ProfileChart(QWidget):
     def reset_view(self):
         self.view = self.bounds
         self._drag_position = None
+        self._press_position = None
+        self._dragging = False
         self.setCursor(Qt.CursorShape.ArrowCursor)
         self.update()
         self.view_changed.emit()
@@ -191,13 +201,21 @@ class ProfileChart(QWidget):
     def mousePressEvent(self, event):
         if self.view is not None and event.button() == Qt.MouseButton.LeftButton and self.chart_rect().contains(event.position()):
             self._drag_position = event.position()
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            self._press_position = event.position()
+            self._dragging = False
             event.accept()
             return
         super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
         if self._drag_position is not None:
+            if not self._dragging:
+                delta = event.position() - self._press_position
+                if abs(delta.x()) + abs(delta.y()) < QApplication.startDragDistance():
+                    event.accept()
+                    return
+                self._dragging = True
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
             delta = event.position() - self._drag_position
             self.pan(delta.x(), delta.y())
             self._drag_position = event.position()
@@ -207,7 +225,11 @@ class ProfileChart(QWidget):
 
     def mouseReleaseEvent(self, event):
         if event.button() == Qt.MouseButton.LeftButton and self._drag_position is not None:
+            if not self._dragging and self.chart_rect().contains(event.position()):
+                self.select_at(event.position())
             self._drag_position = None
+            self._press_position = None
+            self._dragging = False
             self.setCursor(Qt.CursorShape.OpenHandCursor if self.view != self.bounds else Qt.CursorShape.ArrowCursor)
             event.accept()
             return
@@ -219,6 +241,29 @@ class ProfileChart(QWidget):
             event.accept()
             return
         super().mouseDoubleClickEvent(event)
+
+    def select_at(self, position):
+        if self.observations is None:
+            return
+        rect = self.chart_rect()
+        left, right, low, high = self.view
+        x = left + (position.x() - rect.left()) / rect.width() * (right - left)
+        z = high - (position.y() - rect.top()) / rect.height() * (high - low)
+        self.selection = self.observations.select(x, z, visible=(left, right))
+        self.setToolTip(self.selection_text())
+        self.setAccessibleDescription(self.selection_text())
+        self.update()
+
+    def selection_text(self):
+        if self.selection is None:
+            return ""
+        point = self.selection
+        tr = self.language_owner.tr
+        altitude = lambda z: self.number(z, 1) if z is not None else "—"
+        gpx_label = "GPX interpolé" if point.interpolated else "Mesure GPX"
+        return "\n".join((tr(f"Distance : {self.number(point.distance / 1000, 4)} km"),
+            tr("Heure locale : ") + local_time(point.time, seconds=True, date=True, language=self.language_owner.language),
+            tr(f"Terrain lissé : {altitude(point.terrain)} m"), tr(f"{gpx_label} : {altitude(point.gpx)} m")))
 
     @staticmethod
     def display_points(profile, left, right):
@@ -271,16 +316,23 @@ class ProfileChart(QWidget):
         if not self.gpx_profiles:
             painter.setPen(QColor("#64756e"))
             painter.drawText(QPointF(legend_x, 21), self.language_owner.tr("Altitudes GPX manquantes."))
+        painter.setPen(QColor("#64756e"))
+        painter.drawText(QPointF(chart.left(), 37), self.language_owner.tr(
+            "Distance · Heure locale" if self.observations.has_time else "Distance · Heures GPX absentes."))
         for i in range(5):
             y = chart.top() + chart.height() * i / 4
             painter.setPen(QPen(QColor("#e4ece9"), 1))
             painter.drawLine(QPointF(chart.left(), y), QPointF(chart.right(), y))
             painter.setPen(QColor("#64756e"))
             painter.drawText(QRectF(0, y - 9, 56, 18), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, self.number(high - (high - low) * i / 4, altitude_decimals) + " m")
-        for i in range(5):
-            x = chart.left() + chart.width() * i / 4
+        tick_count = 4 if chart.width() >= 500 else 2
+        for i in range(tick_count + 1):
+            value = left + length * i / tick_count
+            x = chart.left() + chart.width() * i / tick_count
             painter.setPen(QColor("#64756e"))
-            painter.drawText(QRectF(x - 32, chart.bottom() + 9, 64, 20), Qt.AlignmentFlag.AlignCenter, self.number((left + length * i / 4) / 1000, distance_decimals) + " km")
+            painter.drawText(QRectF(x - 40, chart.bottom() + 7, 80, 20), Qt.AlignmentFlag.AlignCenter, self.number(value / 1000, distance_decimals) + " km")
+            painter.drawText(QRectF(x - 45, chart.bottom() + 28, 90, 20), Qt.AlignmentFlag.AlignCenter,
+                local_time(self.observations.time_at(value), seconds=length < 1000))
         def make_path(points):
             path = QPainterPath()
             for k, (distance, elevation) in enumerate(points):
@@ -319,7 +371,41 @@ class ProfileChart(QWidget):
         for path in terrain_paths:
             painter.setPen(QPen(QColor("#176c59"), 2.4))
             painter.drawPath(path)
+        point = self.selection
+        if point is not None and left <= point.distance <= right:
+            x = chart.left() + (point.distance - left) / length * chart.width()
+            painter.setPen(QPen(QColor("#43576a"), 1.3, Qt.PenStyle.DashLine))
+            painter.drawLine(QPointF(x, chart.top()), QPointF(x, chart.bottom()))
+            for elevation, color in ((point.terrain, "#176c59"), (point.gpx, "#b86a22")):
+                if elevation is not None and low <= elevation <= high:
+                    y = chart.bottom() - (elevation - low) / (high - low) * chart.height()
+                    painter.setBrush(QColor(color))
+                    painter.setPen(QPen(QColor("white"), 1.5))
+                    painter.drawEllipse(QPointF(x, y), 4, 4)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
         painter.restore()
+        if point is not None and left <= point.distance <= right:
+            metrics = painter.fontMetrics()
+            # Selected x values sit on the horizontal axis; the two elevations stay in the plot.
+            for text, y in ((self.number(point.distance / 1000, 4) + " km", chart.bottom() + 7),
+                            (local_time(point.time, seconds=True), chart.bottom() + 28)):
+                width = metrics.horizontalAdvance(text) + 14
+                box = QRectF(max(0, min(self.width() - width, x - width / 2)), y, width, 21)
+                painter.fillRect(box, QColor("#e8eff5"))
+                painter.setPen(QColor("#203c33"))
+                painter.drawText(box, Qt.AlignmentFlag.AlignCenter, text)
+            lines = self.selection_text().splitlines()
+            width = min(chart.width() - 12, max(metrics.horizontalAdvance(text) for text in lines) + 16)
+            box_x = x + 12 if x + width + 18 <= chart.right() else max(chart.left() + 6, x - width - 12)
+            box = QRectF(box_x, chart.top() + 6, width, 4 * metrics.height() + 12)
+            painter.setBrush(QColor("#f8fbfa"))
+            painter.setPen(QPen(QColor("#cbded3"), 1))
+            painter.drawRoundedRect(box, 6, 6)
+            for i, text in enumerate(lines):
+                painter.setPen(QColor(("#203c33", "#64756e", "#176c59", "#b86a22")[i]))
+                painter.drawText(box.adjusted(8, 6 + i * metrics.height(), -8, 0),
+                    Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop,
+                    metrics.elidedText(text, Qt.TextElideMode.ElideRight, int(width - 16)))
         painter.end()
 
 
@@ -532,7 +618,8 @@ class MainWindow(QMainWindow):
         self.models.setItemText(0, self.tr("Modèle automatique"))
         self.models.setAccessibleName(self.tr("Modèle d'altitude"))
         self.chart.setAccessibleName(self.tr("Profils d'altitude : terrain lissé et mesures GPX, distance en kilomètres et altitude en mètres"))
-        self.chart.setToolTip(self.tr("Molette : zoom · glisser : déplacer · double-clic : vue complète"))
+        self.chart.setToolTip(self.chart.selection_text() or self.tr("Molette : zoom · glisser : déplacer · clic : lire les valeurs · double-clic : vue complète"))
+        self.chart.setAccessibleDescription(self.chart.selection_text())
         if self.chart_fullscreen is not None:
             self.chart_fullscreen.setWindowTitle(self.tr("Profil d'altitude"))
         if self.update_dialog is not None:

@@ -3,6 +3,7 @@ package com.nico.gpx2elev.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -27,6 +28,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -268,11 +271,21 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
     val fullViewport = remember(chart, length) { fullProfileViewport(chart, length) }
     var viewport by remember(chart) { mutableStateOf(fullViewport) }
     var fullscreen by remember(chart) { mutableStateOf(false) }
+    var selection by remember(chart) { mutableStateOf<ProfileSelection?>(null) }
+    val hasTime = remember(chart) { chart.observations.any { it.point.time != null } }
     val compactFullscreen = fullscreen && LocalConfiguration.current.screenHeightDp < 500
     fun axisDistance(value: Double) = String.format(I18n.locale,
         if (viewport.distanceSpan < 100) "%.4f" else if (viewport.distanceSpan < 1000) "%.3f" else "%.2f", value / 1000)
     fun axisAltitude(value: Double) = String.format(I18n.locale,
         if (viewport.altitudeSpan < 2) "%.2f" else if (viewport.altitudeSpan < 20) "%.1f" else "%,.0f", value)
+    fun selectedAltitude(value: Double?) = value?.let { String.format(I18n.locale, "%,.1f", it) } ?: "—"
+    val selectedDescription = selection?.let {
+        t("Distance : ${String.format(I18n.locale, "%.4f", it.distance / 1000)} km") + "; " +
+            t("Heure locale : ") + profileTimeLabel(it.time, seconds = true, language = I18n.language, date = true) + "; " +
+            t("Terrain lissé : ${selectedAltitude(it.terrain)} m") + "; " +
+            t("${if (it.interpolated) "GPX interpolé" else "Mesure GPX"} : ${selectedAltitude(it.gpx)} m")
+    } ?: t("Touchez la courbe pour lire les valeurs.")
+    val tapDescription = t("Lire les valeurs de la courbe")
     val paths = remember(chart, viewport) { chart.terrain.map { visibleProfilePoints(it, viewport) }.filter { it.isNotEmpty() } }
     val observationPaths = remember(chart, viewport) { chart.gpx.map { visibleProfilePoints(it, viewport) }.filter { it.isNotEmpty() } }
     val plotMarginPx = with(LocalDensity.current) { 8.dp.toPx() }
@@ -313,7 +326,7 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                     ProfileZoomControls(viewport, fullViewport) { viewport = it }
                 }
                 if (!fullscreen) {
-                    Text(t("Pincez pour zoomer, glissez pour déplacer la vue."), fontSize = 11.sp, color = labels)
+                    Text(t("Pincez pour zoomer, glissez pour déplacer, touchez pour lire les valeurs."), fontSize = 11.sp, color = labels)
                     Text(t("Altitudes totales"), fontSize = 11.sp, color = labels)
                 }
                 if (!compactFullscreen) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -321,7 +334,25 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                     Text(t("Max. ${meters(maxAltitude)} m"), fontSize = 12.sp, color = labels)
                 }
                 Canvas(Modifier.fillMaxWidth().then(if (fullscreen) Modifier.weight(1f) else Modifier.height(150.dp))
-                    .semantics { contentDescription = chartDescription }
+                    .semantics {
+                        contentDescription = chartDescription
+                        stateDescription = selectedDescription
+                        onClick(tapDescription) {
+                            selection = selectProfilePoint(chart, (viewport.minDistance + viewport.maxDistance) / 2,
+                                (viewport.minAltitude + viewport.maxAltitude) / 2, viewport)
+                            true
+                        }
+                    }
+                    .pointerInput(chart) {
+                        detectTapGestures { position ->
+                            if (size.width > 0 && size.height > 2 * plotMarginPx &&
+                                position.y in plotMarginPx..(size.height - plotMarginPx)) {
+                                val x = viewport.minDistance + position.x / size.width * viewport.distanceSpan
+                                val z = viewport.maxAltitude - (position.y - plotMarginPx) / (size.height - 2 * plotMarginPx) * viewport.altitudeSpan
+                                selection = selectProfilePoint(chart, x, z, viewport)
+                            }
+                        }
+                    }
                     .pointerInput(chart) {
                         detectTransformGestures { centroid, pan, zoom, _ ->
                             val plotHeight = size.height - 2 * plotMarginPx
@@ -369,11 +400,50 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                             }
                         }
                         for (points in paths) drawPath(pathFor(points), line, style = Stroke(width = 2.dp.toPx()))
+                        selection?.takeIf { it.distance in viewport.minDistance..viewport.maxDistance }?.let { point ->
+                            val x = ((point.distance - viewport.minDistance) / viewport.distanceSpan * size.width).toFloat()
+                            drawLine(labels, Offset(x, margin), Offset(x, size.height - margin), 1.dp.toPx(),
+                                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx())))
+                            for ((altitude, color) in listOf(point.terrain to line, point.gpx to observations)) {
+                                if (altitude != null && altitude in viewport.minAltitude..viewport.maxAltitude) {
+                                    val y = (margin + h * (1 - (altitude - low) / span)).toFloat()
+                                    drawCircle(color, radius = 4.dp.toPx(), center = Offset(x, y))
+                                }
+                            }
+                        }
                     }
                 }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(t("${axisDistance(viewport.minDistance)} km"), color = labels, fontSize = 11.sp)
-                    Text(t("${axisDistance(viewport.maxDistance)} km"), color = labels, fontSize = 11.sp)
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        for (i in 0..2) {
+                            val x = viewport.minDistance + viewport.distanceSpan * i / 2
+                            Column(horizontalAlignment = if (i == 0) Alignment.Start else if (i == 2) Alignment.End else Alignment.CenterHorizontally) {
+                                Text(t("${axisDistance(x)} km"), color = labels, fontSize = 11.sp)
+                                Text(profileTimeLabel(profileTimeAt(chart, x), seconds = viewport.distanceSpan < 1000), color = labels, fontSize = 10.sp)
+                            }
+                        }
+                    }
+                    selection?.takeIf { it.distance in viewport.minDistance..viewport.maxDistance }?.let { point ->
+                        val width = 120.dp
+                        val fraction = ((point.distance - viewport.minDistance) / viewport.distanceSpan).toFloat()
+                        val x = (maxWidth * fraction - width / 2).coerceIn(0.dp, maxOf(0.dp, maxWidth - width))
+                        Surface(Modifier.offset(x = x).width(width), color = MaterialTheme.colorScheme.primaryContainer,
+                            shape = RoundedCornerShape(6.dp)) {
+                            Column(Modifier.padding(horizontal = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(String.format(I18n.locale, "%.4f km", point.distance / 1000), fontSize = 11.sp)
+                                Text(profileTimeLabel(point.time, seconds = true), fontSize = 10.sp)
+                            }
+                        }
+                    }
+                }
+                if (!compactFullscreen) Text(t(if (hasTime) "Distance · Heure locale" else "Distance · Heures GPX absentes."), color = labels, fontSize = 10.sp)
+                selection?.let { point ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(t("Terrain lissé : ${selectedAltitude(point.terrain)} m"), Modifier.weight(1f), color = line, fontSize = 12.sp)
+                        Text(t("${if (point.interpolated) "GPX interpolé" else "Mesure GPX"} : ${selectedAltitude(point.gpx)} m"), Modifier.weight(1f), color = observations, fontSize = 12.sp)
+                    }
+                    if (!compactFullscreen) Text(t("Heure locale : ") + profileTimeLabel(point.time, seconds = true, language = I18n.language, date = true),
+                        color = labels, fontSize = 11.sp)
                 }
                 Text(t("Altitude visible : ${axisAltitude(viewport.minAltitude)} à ${axisAltitude(viewport.maxAltitude)} m"), color = labels, fontSize = 11.sp)
             }

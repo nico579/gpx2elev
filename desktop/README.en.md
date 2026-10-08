@@ -4,7 +4,7 @@
 
 A Python desktop application with standalone bundles containing Python, Qt and elevation readers. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.4**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.5**. GitHub Actions builds all five release assets and verifies them before publication.
 
 ## Open the application
 
@@ -21,6 +21,8 @@ The first calculation requires Internet access. The screen shows the model, asce
 The chart overlays smoothed terrain (green) and original GPX measurements (dashed orange) on a shared scale. Use the mouse wheel to zoom around the pointer and drag to pan. **Zoom +**, **Zoom −** and **Full view** buttons are also available. Double-click to restore the full view. Segments remain separate and missing elevations interrupt the GPX curve.
 
 **Full screen** expands the chart; **Exit full screen** or **Escape** restores the normal window. Zoom and pan are preserved. A cache write failure keeps the result available and displays a warning about offline use.
+
+The horizontal axis also shows **local time from GPX observations**. Click to place a vertical cursor showing distance, time, smoothed terrain elevation and GPX elevation. Dragging still pans the view. Zooming, full screen and FR/EN changes preserve the selection. When zooming between observations, **Interpolated GPX** identifies an interpolated value. Missing or invalid times appear as **—**; time ticks do not bridge missing timestamps, segment boundaries or clock reversals.
 
 ## Updates
 
