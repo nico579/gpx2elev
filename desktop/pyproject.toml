@@ -31,10 +31,12 @@ Source = "https://github.com/nico579/gpx2elev"
 gpx2elev = "gpx2elev.__main__:main"
 
 [tool.setuptools]
-packages = ["gpx2elev"]
+# assets/ déclaré comme paquet : setuptools n'inclura bientôt plus un dossier de
+# données absent de cette liste, et __init__.py lit assets/version.txt.
+packages = ["gpx2elev", "gpx2elev.assets"]
 
 [tool.setuptools.dynamic]
 version = {attr = "gpx2elev.__version__"}
 
 [tool.setuptools.package-data]
-gpx2elev = ["assets/*"]
+"gpx2elev.assets" = ["*"]
