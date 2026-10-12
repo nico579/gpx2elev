@@ -56,7 +56,7 @@ Elevation gain is an estimate affected by the terrain model, XY coordinates and 
 
 The window shows the total cache size and the profile/tile breakdown in MiB. **Clear cache** asks for confirmation, removes downloaded data and updates the size. The GPX, settings, exports and displayed result are kept. Future calculations will need to fetch elevations again. Clearing is disabled during a calculation or deletion. The 64 MiB and 512 MiB limits are applied after calculations; downloads can temporarily exceed them.
 
-The last calculated track and complete profiles are stored locally. Profiles are keyed by coordinates and source configuration and protected by SHA-256 integrity checks. Cache limits are 64 MB for profiles and 512 MB for tiles. The last track is restored offline. Uncheck **Allow Internet access** to use cached profiles only.
+The last calculated track and complete profiles are stored locally. Profiles are keyed by coordinates and source configuration and protected by SHA-256 integrity checks. Caches are never emptied automatically: they are only cleared on request, from the interface and after confirmation. The last track is restored offline. Uncheck **Allow Internet access** to use cached profiles only.
 
 Coordinates are sent to IGN to obtain elevations. Other sources use downloaded tiles. There is no telemetry or API key, and no personal tracks in GitHub or the bundles.
 

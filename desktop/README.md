@@ -58,7 +58,7 @@ L'estimation dépend du MNT, des coordonnées XY et du filtrage ; le protocole n
 
 L'écran affiche la taille totale du cache et le détail profils/tuiles en Mio. **Vider le cache** demande confirmation, supprime les données téléchargées et actualise la taille. Le GPX, les réglages, les exports et le résultat affiché sont conservés. Les prochains calculs devront récupérer les altitudes à nouveau. Le bouton est désactivé pendant un calcul ou une suppression. Les plafonds de 64 Mio et 512 Mio sont appliqués après les calculs ; un téléchargement peut temporairement les dépasser.
 
-La dernière trace calculée et les profils sont conservés dans les données locales de gpx2elev. Les profils ont une empreinte des coordonnées et de la configuration de source et une somme SHA-256 d'intégrité. Les caches sont limités à 64 Mo de profils et 512 Mo de tuiles. La dernière trace est rouverte depuis le cache, sans réseau. Décocher **Internet autorisé** impose l'utilisation du cache.
+La dernière trace calculée et les profils sont conservés dans les données locales de gpx2elev. Les profils ont une empreinte des coordonnées et de la configuration de source et une somme SHA-256 d'intégrité. Les caches ne se vident jamais d'eux-mêmes : ils ne sont effacés que sur demande, depuis l'interface et après confirmation. La dernière trace est rouverte depuis le cache, sans réseau. Décocher **Internet autorisé** impose l'utilisation du cache.
 
 Les coordonnées sont envoyées au service IGN pour obtenir ses altitudes. Pour les autres modèles, seules les tuiles sont téléchargées. Aucune télémétrie ; aucune trace personnelle dans les bundles ou GitHub. Le calcul n'utilise pas de clé API.
 

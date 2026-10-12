@@ -1,0 +1,7 @@
+# Construction de l'exécutable (tools/build_bundle.py) : les dépendances de
+# l'application aux versions exactes de requirements.txt (contrainte -c), plus
+# PyInstaller, qui ne sert qu'à construire et n'entre pas dans le programme livré.
+-c requirements.txt
+-r requirements.in
+PyInstaller==6.20.0
+pyinstaller-hooks-contrib==2026.8

@@ -1,0 +1,11 @@
+# Les dépendances de l'application de bureau, déclarées une seule fois, aux
+# versions vérifiées : le verrou exact (version et empreinte SHA-256 de chaque
+# paquet, pour Windows, Linux et macOS à la fois) est généré dans
+# requirements.txt par uv, voir l'en-tête de ce fichier. Même schéma que
+# gpxsolar, lidar2map, blink2video et watch2notif.
+nico579-commons[tray]==0.4.15
+numpy==1.26.4
+Pillow==11.3.0
+requests==2.34.2
+rasterio==1.4.3
+defusedxml==0.7.1

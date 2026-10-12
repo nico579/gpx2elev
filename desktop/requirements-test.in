@@ -1,0 +1,6 @@
+# Contrôles (tests dans Chromium et lint) : les dépendances de construction aux
+# versions exactes de requirements-build.txt (contrainte -c), plus Playwright et ruff.
+-c requirements-build.txt
+-r requirements-build.in
+playwright==1.63.0
+ruff==0.15.20
