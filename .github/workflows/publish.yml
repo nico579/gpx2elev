@@ -1,0 +1,65 @@
+name: Publication sur PyPI
+
+# Un tag vX.Y.Z poussé publie le moteur gpx2elev sur PyPI, sans mot de passe
+# ni jeton stocké : PyPI fait confiance à ce workflow précis de ce dépôt
+# (« trusted publishing », OpenID Connect), déclaré une fois pour toutes sur
+# pypi.org. Le même tag lance Release, qui construit l'APK et les bundles.
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  construire:
+    name: construction et vérification
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Le tag égale la version commune
+        run: python tools/check_versions.py
+      - name: Tests du moteur, installé sans Qt
+        working-directory: desktop
+        run: |
+          python -m pip install --quiet .
+          python -m unittest tests.test_core tests.test_providers -v
+      - name: Construction
+        working-directory: desktop
+        run: |
+          python -m pip install --quiet build
+          python -m build
+      - name: Le paquet de base n'entraîne pas Qt
+        working-directory: desktop
+        run: |
+          python - <<'EOF'
+          import glob, zipfile
+          wheel = zipfile.ZipFile(glob.glob("dist/*.whl")[0])
+          metadata = next(n for n in wheel.namelist() if n.endswith(".dist-info/METADATA"))
+          base = [line for line in wheel.read(metadata).decode().splitlines()
+                  if line.startswith("Requires-Dist:") and "extra ==" not in line]
+          assert base and not any("PySide6" in line for line in base), base
+          print("\n".join(base))
+          EOF
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dist
+          path: desktop/dist/
+
+  publier:
+    name: publication
+    needs: construire
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
