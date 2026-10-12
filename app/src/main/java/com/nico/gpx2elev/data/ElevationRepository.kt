@@ -71,15 +71,17 @@ class ElevationRepository(private val profiles: File, private val reader: ModelR
 
     fun obtain(points: List<GeoPoint>, online: Boolean, progress: (Progress) -> Unit): ElevationSeries {
         require(points.isNotEmpty())
+        // Un profil déjà obtenu d'un modèle est définitif : le cache de tous les
+        // modèles passe avant le réseau, comme sur ordinateur.
+        for (source in RANKING) {
+            progress(Progress("Recherche des altitudes · ${source.label}", 0, points.size))
+            cached(file(source, points), points.size)?.let { return ElevationSeries(source, it, true, emptyList()) }
+        }
+        if (!online) throw IOException("Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul.")
         val failures = mutableListOf<SourceFailure>()
         for (source in RANKING) {
             progress(Progress("Recherche des altitudes · ${source.label}", 0, points.size))
             val file = file(source, points)
-            cached(file, points.size)?.let { return ElevationSeries(source, it, true, failures) }
-            if (!online) {
-                failures += SourceFailure(source, "Altitudes absentes du cache hors connexion.")
-                continue
-            }
             try {
                 val z = reader.read(source, points, progress)
                 require(z.size == points.size) { "Nombre d'altitudes incorrect." }
@@ -94,8 +96,7 @@ class ElevationRepository(private val profiles: File, private val reader: ModelR
                 failures += SourceFailure(source, e.message?.take(220) ?: "Lecture des altitudes impossible.")
             }
         }
-        throw IOException(if (!online) "Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul."
-            else "Aucun modèle n'a pu fournir un profil complet.\n" + failures.joinToString("\n") { "${it.source.label} : ${it.reason}" })
+        throw IOException("Aucun modèle n'a pu fournir un profil complet.\n" + failures.joinToString("\n") { "${it.source.label} : ${it.reason}" })
     }
 }
 

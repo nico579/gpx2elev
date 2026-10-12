@@ -50,6 +50,13 @@ class WebTests(unittest.TestCase):
         self.server.server_close()
         self.temporary.cleanup()
 
+    def test_unreadable_gpx_from_the_system_is_shown_instead_of_stopping(self):
+        result = self.app.open_request({"path": str(self.root / "introuvable.gpx")})
+        self.assertIn("error", result)
+        state = self.app.snapshot()
+        self.assertEqual(state["phase"], "error")
+        self.assertTrue(state["message"].startswith("Ouverture du GPX impossible : "), state["message"])
+
     def request(self, route, payload=None, headers=None):
         request = urllib.request.Request(f"http://127.0.0.1:{self.port}{route}",
             data=json.dumps(payload).encode() if payload is not None else None,

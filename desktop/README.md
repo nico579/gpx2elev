@@ -6,14 +6,14 @@ Application Python avec une interface web locale et des bundles autonomes inclua
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.4.0.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.4.0, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.4.1.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.4.1, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.4.0-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.4.0-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python et GDAL sont inclus ; un navigateur suffit pour la page.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.4.1-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.4.1-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python et GDAL sont inclus ; un navigateur suffit pour la page.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
 
 Le lancement ouvre le navigateur à http://127.0.0.1:8769/ (ou au premier port libre suivant). Le serveur écoute uniquement sur cet ordinateur. Un second lancement rejoint l'instance qui utilise le même dossier de données et lui transmet le GPX éventuel. L'option --new-instance crée un serveur distinct.
@@ -58,7 +58,7 @@ L'estimation dépend du MNT, des coordonnées XY et du filtrage ; le protocole n
 
 L'écran affiche la taille totale du cache et le détail profils/tuiles en Mio. **Vider le cache** demande confirmation, supprime les données téléchargées et actualise la taille. Le GPX, les réglages, les exports et le résultat affiché sont conservés. Les prochains calculs devront récupérer les altitudes à nouveau. Le bouton est désactivé pendant un calcul ou une suppression. Les plafonds de 64 Mio et 512 Mio sont appliqués après les calculs ; un téléchargement peut temporairement les dépasser.
 
-La dernière trace calculée et les profils sont conservés dans les données locales de gpx2elev. Les profils ont une empreinte des coordonnées et de la configuration de source et une somme SHA-256 d'intégrité. Les caches sont limités à 64 Mo de profils et 512 Mo de tuiles. La dernière trace est rouverte depuis le cache, sans réseau. Décocher **Internet autorisé** impose l'utilisation du cache.
+La dernière trace calculée et les profils sont conservés dans les données locales de gpx2elev. Les profils ont une empreinte des coordonnées et de la configuration de source et une somme SHA-256 d'intégrité. Les caches ne se vident jamais d'eux-mêmes : ils ne sont effacés que sur demande, depuis l'interface et après confirmation. La dernière trace est rouverte depuis le cache, sans réseau. Décocher **Internet autorisé** impose l'utilisation du cache.
 
 Les coordonnées sont envoyées au service IGN pour obtenir ses altitudes. Pour les autres modèles, seules les tuiles sont téléchargées. Aucune télémétrie ; aucune trace personnelle dans les bundles ou GitHub. Le calcul n'utilise pas de clé API.
 

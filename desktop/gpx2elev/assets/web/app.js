@@ -83,7 +83,8 @@ async function refresh(){
 }
 const options=()=>({online:$('online').checked,model:$('model').value||null});
 async function upload(file){
-  if(!file||sending||!currentState||currentState.busy)return;
+  if(!file||sending||!currentState)return;
+  if(currentState.busy)return notify(new Error("Un calcul est en cours : annulez-le ou attendez sa fin avant d'importer un autre GPX."));
   if(!/\.gpx$/i.test(file.name))return notify(new Error("Ce fichier n'est pas un GPX."));
   if(file.size>20*1024*1024)return notify(new Error('Le GPX dépasse 20 Mo.'));
   sending=true;render(currentState);

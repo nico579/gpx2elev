@@ -35,11 +35,38 @@ jobs:
           git diff --exit-code -- app/src/main/assets/translations.json desktop/gpx2elev/assets/translations.json
       - name: Lint Python et syntaxe JavaScript
         run: |
-          python -m pip install -r desktop/requirements-test.txt
+          python -m pip install --require-hashes -r desktop/requirements-test.txt
           python -m ruff check desktop/gpx2elev desktop/tools desktop/tests desktop/launcher.py tools
           node --check desktop/gpx2elev/assets/web/app.js
           node --check desktop/gpx2elev/assets/web/chart.js
           node --check desktop/gpx2elev/assets/web/web_bridge.js
+
+  verrous:
+    name: Verrous des dépendances
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - run: python -m pip install uv==0.9.28
+      # Chaque version figée doit exister en paquet binaire sur les quatre machines
+      # de Release, sans compilation surprise. macOS 14 : la cible de macos-14,
+      # en dessous de laquelle rasterio n'a pas de paquet pour Apple Silicon.
+      - name: Roues pour les quatre systèmes de construction
+        working-directory: desktop
+        env:
+          MACOSX_DEPLOYMENT_TARGET: "14.0"
+        run: |
+          for verrou in requirements.txt requirements-build.txt requirements-test.txt; do
+            for cible in x86_64-pc-windows-msvc x86_64-unknown-linux-gnu aarch64-apple-darwin x86_64-apple-darwin; do
+              echo "== $verrou pour $cible"
+              uv pip compile "$verrou" --python-platform "$cible" --python-version 3.12 --only-binary :all: --no-header --quiet > /dev/null
+            done
+          done
 
   android:
     name: Android (tests, lint, APK)
@@ -112,7 +139,7 @@ jobs:
           cache: pip
           cache-dependency-path: desktop/requirements*.txt
       - name: Dépendances figées
-        run: python -m pip install -r requirements-build.txt -r requirements-test.txt
+        run: python -m pip install --require-hashes -r requirements-test.txt
       - name: Tests du moteur, du serveur, des mises à jour et du graphique
         run: python -m unittest discover -s tests -v
       - name: Exécutable construit et vérifié

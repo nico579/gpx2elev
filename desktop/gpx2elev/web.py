@@ -169,7 +169,16 @@ class Application:
             online, model = self._options(payload)
             return self.open_path(payload["path"], online, model, queue=True)
         except (OSError, ValueError) as exc:
+            self.report_open_error(exc)
             return {"error": str(exc)}
+
+    def report_open_error(self, error):
+        """Un GPX ouvert par le système ou la ligne de commande, mais illisible :
+        l'erreur s'affiche dans la page au lieu d'arrêter l'application."""
+        reason = error.strerror if isinstance(error, OSError) and error.strerror else str(error)
+        with self.lock:
+            if not self.busy():
+                self.state.update(phase="error", message=f"Ouverture du GPX impossible : {reason}")
 
     def recalculate(self, payload):
         if not isinstance(payload, dict):
@@ -382,14 +391,15 @@ def serve(args):
                     continue
             except (OSError, ValueError):
                 continue
+            status = 0
             if args.gpx:
                 result = _request(port, "open", {"path": str(Path(args.gpx).resolve()),
                                                 "online": not args.offline, "model": args.model})
-                if result.get("error"):
-                    raise ValueError(result["error"])
+                # L'instance ouverte affiche elle-même l'erreur : on la montre.
+                status = 1 if result.get("error") else 0
             if not args.no_browser:
                 webbrowser.open(f"http://{HOST}:{port}/")
-            return 0
+            return status
 
     app = Application(directory, not args.offline, args.model)
     server = None
@@ -398,10 +408,14 @@ def serve(args):
         url = f"http://{HOST}:{port}/"
         if sys.stdout:
             print(f"gpx2elev : {url}", flush=True)
-        if args.gpx:
-            app.open_path(args.gpx)
-        elif (directory / "last.gpx").is_file():
-            app.open_path(directory / "last.gpx", online=False)
+        try:
+            if args.gpx:
+                app.open_path(args.gpx)
+            elif (directory / "last.gpx").is_file():
+                app.open_path(directory / "last.gpx", online=False)
+        except (OSError, ValueError) as exc:
+            # Sans console, une erreur ici arrêterait l'application sans rien montrer.
+            app.report_open_error(exc)
         if args.update_result:
             result = atomique.lire_json(args.update_result, {})
             if isinstance(result, dict) and result.get("status") == "ERROR":

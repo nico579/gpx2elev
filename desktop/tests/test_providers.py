@@ -12,7 +12,7 @@ from PIL import Image
 import rasterio
 from rasterio.transform import from_origin
 
-from gpx2elev.providers import (Cancelled, ProfileCache, PublicModels,
+from gpx2elev.providers import (Cancelled, MissingCoverage, ProfileCache, PublicModels,
     RemoteZip, Repository, Source, bilinear)
 
 RESOURCES = Path(__file__).resolve().parents[2] / "app/src/test/resources"
@@ -76,6 +76,26 @@ class ProviderTests(unittest.TestCase):
             np.testing.assert_array_equal(second.values, first.values)
             self.assertEqual(len(reader.calls), 2)
             repo.close()
+
+    def test_cached_profile_is_reused_online_without_retrying_better_models(self):
+        with tempfile.TemporaryDirectory() as directory:
+            reader = Reader()
+            points = np.array([[45., 5.], [45.001, 5.]])
+            first = Repository(directory, reader=reader).obtain(points)
+            again = Repository(directory, reader=reader).obtain(points, online=True)
+            # Le repli Mapterhorn en cache est définitif : l'IGN n'est pas réinterrogé.
+            self.assertEqual(reader.calls, [Source.IGN, Source.MAPTERHORN])
+            self.assertTrue(again.from_cache)
+            self.assertEqual(again.source, first.source)
+            # Forcer un modèle l'interroge malgré le profil d'un autre modèle en cache.
+            with self.assertRaises(MissingCoverage):
+                Repository(directory, reader=reader).obtain(points, source=Source.IGN)
+            self.assertEqual(reader.calls, [Source.IGN, Source.MAPTERHORN, Source.IGN])
+
+    def test_closing_never_trims_the_cache(self):
+        with tempfile.TemporaryDirectory() as directory, patch("gpx2elev.providers.trim_cache") as trim:
+            Repository(directory, reader=Reader()).close()
+        trim.assert_not_called()
 
     def test_cache_integrity_coordinates_and_configuration(self):
         with tempfile.TemporaryDirectory() as directory:

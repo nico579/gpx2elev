@@ -523,16 +523,21 @@ class Repository:
         self.reader = reader if reader is not None else PublicModels(self.directory / "tiles", self.http)
 
     def obtain(self, coordinates, online=True, progress=lambda *args: None, source=None):
-        failures = []
-        for candidate in (RANKING if source is None else (source,)):
+        candidates = RANKING if source is None else (source,)
+        # Un profil déjà obtenu d'un modèle est définitif : le cache de tous les
+        # modèles passe avant le réseau. Choisir un modèle précis le force.
+        for candidate in candidates:
             self.http.check()
             progress(f"Recherche des altitudes · {candidate.label}", 0, len(coordinates))
             cached = self.cache.load(candidate, coordinates)
             if cached is not None:
-                return Series(candidate, cached, True, failures)
-            if not online:
-                failures.append((candidate, "Profil absent du cache hors connexion."))
-                continue
+                return Series(candidate, cached, True, [])
+        if not online:
+            raise MissingCoverage("Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul.")
+        failures = []
+        for candidate in candidates:
+            self.http.check()
+            progress(f"Recherche des altitudes · {candidate.label}", 0, len(coordinates))
             try:
                 values = np.asarray(self.reader.read(candidate, coordinates, progress), dtype=float)
                 self.http.check()
@@ -548,11 +553,9 @@ class Repository:
             except OSError as exc:
                 return Series(candidate, values, False, failures, str(exc)[:240])
             return Series(candidate, values, False, failures)
-        if not online:
-            raise MissingCoverage("Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul.")
         raise MissingCoverage("Aucun modèle n'a fourni un profil complet.\n" + "\n".join(f"{s.label} : {reason}" for s, reason in failures))
 
     def close(self):
+        # Le cache ne se vide jamais seul : seul un effacement demandé le vide.
+        # trim_cache reste disponible pour qui voudrait borner sa taille.
         self.http.close()
-        trim_cache(self.directory / "profiles", 64 * 1024 * 1024)
-        trim_cache(self.directory / "tiles", 512 * 1024 * 1024)
