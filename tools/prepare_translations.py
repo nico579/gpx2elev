@@ -271,6 +271,8 @@ PAIRS.update({
 PAIRS.update({
     "Distance · Heure locale": "Distance · Local time",
     "Distance · Heures GPX absentes.": "Distance · GPX timestamps missing.",
+    "Distance (km) · heure locale": "Distance (km) · local time",
+    "Distance (km) · heures GPX absentes": "Distance (km) · GPX timestamps missing",
     "Distance : {0} km": "Distance: {0} km",
     "Heure locale : ": "Local time: ",
     "Terrain lissé : {0} m": "Smoothed terrain: {0} m",

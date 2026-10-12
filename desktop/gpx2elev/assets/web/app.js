@@ -9,6 +9,8 @@ function t(text){
   return text;
 }
 function number(value,decimals=0){return Number(value).toLocaleString(language==='fr'?'fr-FR':'en-GB',{minimumFractionDigits:decimals,maximumFractionDigits:decimals});}
+// Signe seulement pour une valeur affichée non nulle : « 0 m », jamais « −0 m ».
+function signedMetres(sign,value){const text=number(value);return(/^[-−]?0$/.test(text)?'0':sign+text)+' m';}
 function size(value){
   if(value>=1048576)return number(value/1048576,1)+' '+t('Mio');
   if(value>=1024)return number(value/1024,1)+' '+t('Kio');
@@ -62,7 +64,7 @@ function render(state){
     $('range').textContent=t('Profil lissé · pas 5 m · gaussienne σ = 20 m · hystérésis 2 m');
     $('details').hidden=state.phase!=='error';$('details').textContent=t(state.message);
   }else{
-    $('up').textContent='+'+number(summary.terrain.Dplus_m)+' m';$('down').textContent='−'+number(summary.terrain.Dmoins_m)+' m';
+    $('up').textContent=signedMetres('+',summary.terrain.Dplus_m);$('down').textContent=signedMetres('−',summary.terrain.Dmoins_m);
     $('length').textContent=number(summary.distance_m/1000,2)+' km';$('filename').textContent=summary.fichier;
     $('source').textContent=t('Source : ')+summary.modele+(summary.depuis_cache?t(' · profil en cache'):'');
     $('range').textContent=t('Terrain lissé')+' '+number(summary.altitude_min_m)+'–'+number(summary.altitude_max_m)+' m · '+t('pas 5 m · σ = 20 m · hystérésis 2 m');

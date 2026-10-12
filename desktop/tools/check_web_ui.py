@@ -17,10 +17,10 @@ import urllib.request
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from gpx2elev.core import parse_gpx, prepare
-from gpx2elev.providers import Cancelled, ProfileCache, Source
-from gpx2elev.smoke import SYNTHETIC_GPX
-from gpx2elev.web import Application, start_server
+from gpx2elev.core import parse_gpx, prepare  # noqa: E402
+from gpx2elev.providers import Cancelled, ProfileCache, Source  # noqa: E402
+from gpx2elev.smoke import SYNTHETIC_GPX  # noqa: E402
+from gpx2elev.web import Application, start_server  # noqa: E402
 
 
 def check(args):
@@ -76,7 +76,7 @@ def check(args):
                 page.set_input_files("#file", str(track))
                 expect(page.locator("#status")).to_contain_text("Calcul terminé")
                 expect(page.locator("#up")).to_have_text("+22 m")
-                expect(page.locator("#down")).to_have_text("−0 m")
+                expect(page.locator("#down")).to_have_text("0 m")
                 expect(page.locator("#filename")).to_have_text("randonnée.gpx")
                 expect(page.locator("#export-summary")).to_be_enabled()
                 original = request("api/result")

@@ -142,7 +142,7 @@ class ProfilePlot{
       const time=timeAt(this.data.native,x);if(time!==null)ctx.fillText(this.callbacks.time(time,false),at,r.y+r.h+39);
     }
     ctx.fillStyle='#62776d';ctx.textAlign='center';
-    ctx.fillText(t(this.data.native.time.some(x=>x!==null)?'Distance · Heure locale':'Distance · Heures GPX absentes.')+' (km)',r.x+r.w/2,height-8);
+    ctx.fillText(t(this.data.native.time.some(x=>x!==null)?'Distance (km) · heure locale':'Distance (km) · heures GPX absentes'),r.x+r.w/2,height-8);
     ctx.save();ctx.beginPath();ctx.rect(r.x,r.y,r.w,r.h);ctx.clip();
     function line(profile,color,dashed){
       const points=visiblePoints(profile,v[0],v[1],r.w);
