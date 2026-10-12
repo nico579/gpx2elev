@@ -191,7 +191,7 @@ Validation locale : **51 tests bureau, 49 réussis et 2 ignorés**, sans échec.
 
 ## Publication du moteur dans la version 0.3.7
 
-Le moteur (`core.py`, `providers.py`) est publié sur PyPI sous le nom `gpx2elev`, pour que GPX2DASH s'en serve au lieu d'en garder une copie. Le paquet tirait jusqu'ici ses dépendances de `requirements.txt`, PySide6 compris : un programme sans interface aurait installé Qt. Le paquet de base déclare désormais les seules dépendances du moteur, avec des versions minimales, et Qt passe dans l'extra `gui`. Les bundles gardent leurs versions figées dans `requirements.txt`. Aucun code n'est modifié.
+Le moteur (`core.py`, `providers.py`) est publié sur PyPI sous le nom `gpx2elev`, pour que GPX2DASH s'en serve au lieu d'en garder une copie. Le paquet tirait jusqu'ici ses dépendances de `requirements.txt`, PySide6 compris : un programme sans interface aurait installé Qt. Le paquet de base déclare désormais les seules dépendances du moteur, avec des versions minimales, et Qt passe dans l'extra `gui`. Les bundles gardent leurs versions figées dans `requirements.txt`. Aucun code n'est modifié. Le projet déclare sa licence, GPL-3.0-or-later comme les autres projets, sous la forme SPDX que setuptools exige à partir du 18 février 2027.
 
 Le workflow `publish.yml` reprend celui de nico579-commons : publication de confiance (OpenID Connect) sur un tag `vX.Y.Z`, après le contrôle des versions, les tests du moteur installé sans Qt et la vérification que le paquet de base n'exige pas PySide6.
 
