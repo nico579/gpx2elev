@@ -2,17 +2,17 @@
 
 **[English](README.en.md) | [Français](README.md)**
 
-A Python application with a local web interface and standalone bundles containing Python and elevation readers. Server, language, version checker and system tray: [nico579-commons](https://github.com/nico579/nico579-commons), like gpxsolar, blink2video, watch2notif and lidar2map. **You do not need to install Python to use a bundle.**
+A Python application with a local web interface and standalone bundles containing Python and elevation readers. Server, language, version checker, automatic updates and system tray: [nico579-commons](https://github.com/nico579/nico579-commons), like gpxsolar, blink2video, watch2notif and lidar2map. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.4.1**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.5.0**. GitHub Actions builds all five release assets and verifies them before publication.
 
 The interface adapts to resizing and maximizing. If the screen is too short, a scrollbar provides access to the bottom of the page; card values remain fully visible and controls do not overlap the chart.
 
 ## Open the application
 
-- **Windows 10/11, x64:** extract the `windows-x64.zip` archive and open `gpx2elev/gpx2elev.exe`. Keep the entire extracted folder.
-- **Linux, x64:** extract `linux-x64.tar.gz` and run `./gpx2elev/gpx2elev`. Built on Ubuntu 22.04; requires glibc 2.35 or later. Python and GDAL are included; the page runs in your browser.
-- **macOS:** use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the archive and open `gpx2elev.app`. Bundles are tested on macOS 14 (Apple Silicon) and macOS 15 (Intel). They are not notarized; if blocked, use **System Settings → Privacy & Security → Open Anyway**.
+- **Windows 10/11, x64:** extract `gpx2elev-windows-x86_64.zip` and open `gpx2elev-windows-x86_64/gpx2elev.exe`. Keep the entire extracted folder; you may rename or move it, preferably within your user folder.
+- **Linux, x64:** extract `gpx2elev-linux-x86_64.tar.gz` and run `./gpx2elev-linux-x86_64/gpx2elev`. Built on Ubuntu 22.04; requires glibc 2.35 or later. Python and GDAL are included; the page runs in your browser.
+- **macOS:** use `gpx2elev-macos-arm64.zip` for Apple Silicon or `gpx2elev-macos-x86_64.zip` for Intel, extract the archive and open `gpx2elev.app`. Bundles are tested on macOS 14 (Apple Silicon) and macOS 15 (Intel). They are not notarized; if blocked, use **System Settings → Privacy & Security → Open Anyway**.
 
 Launching opens http://127.0.0.1:8769/ in your browser, or the next available port. The server listens only on this computer. A second launch joins the instance using the same data directory and forwards any GPX argument. The --new-instance option starts a separate server.
 
@@ -32,9 +32,13 @@ The horizontal axis also shows **local time from GPX observations**. Click to pl
 
 ## Updates
 
-The **Updates** button at the bottom of the page manually checks GitHub for the latest official stable release and shows its version, size and release notes. **Download and install** selects the bundle for the current Windows, Linux or macOS architecture, verifies its SHA-256 and runs its offline self-check before changing the installation. **Install and restart** closes the application, replaces its folder and launches it again. Data and the last GPX remain in their separate folder; the previous application is retained and restored if replacement or launch fails.
+Updates come from nico579-commons, as in gpxsolar, lidar2map and watch2notif. When a newer version is published, a banner at the top of the page announces it and the icon offers **Update to…**. **Install** downloads the bundle for this system, verifies its SHA-256 and contents, runs its self-test, then closes gpx2elev: a helper replaces the application folder, starts the new version and checks that it runs; on any failure it puts the previous version back. The open page reloads itself on the new version. Data and the last GPX remain in their separate folder.
 
-The application folder and its parent must be writable, and data must reside outside the application folder. Keep the extracted folder named `gpx2elev` (`gpx2elev.app` on macOS). When running from Python source or a renamed folder, **Download** and **Open folder** provide a verified bundle for manual installation. Checks never run automatically; Internet access is required after requesting a check. Published versions without this button require one manual upgrade first.
+The **⚙ Settings…** button, next to FR / EN, shows the installed version; **Check for updates** asks GitHub at once. Otherwise the common version checker asks GitHub at most once an hour and keeps its last answer; --offline disables this watcher. Installing always remains an explicit action.
+
+Only the published bundle replaces itself: its folder must hold nothing else, and its parent folder must be writable. From Python source, or in a folder holding other files, the banner links to the release page for a manual update.
+
+Versions 0.3 and 0.4 move to this version through their former **Updates** button: the release keeps the same bundles under their former names (`gpx2elev-<version>-windows-x64.zip`…) for them, with no need to download those by hand. Their mechanism left a `.gpx2elev-update-…` folder holding the whole previous version next to the application; the new version removes it at startup.
 
 ## Same protocol as Android
 
@@ -79,9 +83,9 @@ python -m playwright install --with-deps chromium
 python tools/check_web_ui.py
 ```
 
-Activate `.venv` before installation and launch. `build_bundle.py` builds for the current platform, runs the frozen executable and generates an archive, SHA-256 checksum and verification report in `release/`. GitHub builds use native Windows, Linux and both macOS architectures.
+Activate `.venv` before installation and launch. `build_bundle.py` builds for the current platform, runs the frozen executable and generates both archives (common and former names), their SHA-256 checksums and a verification report in `release/`; on the common archive it replays what the installer does: checked extraction, then the extracted executable's self-test. GitHub builds use native Windows, Linux and both macOS architectures.
 
-Tests cover the numerical protocol, readers, cache, cancellation, both languages and saved language selection. The frozen executable checks HTTP routes, page assets, offline calculation, cursor, language, CSV export, cache, GDAL and WebP. Playwright tests real browser file selection, drop, zoom, pan, full screen, CSV downloads, cancellation, update UI and responsive layouts. Qt is absent from the bundles. The personal archived reference, when available locally, compares 4,467 smoothed elevations and totals **735.128566 / 735.149565 m**. It is not distributed and is skipped on GitHub.
+Tests cover the numerical protocol, readers, cache, cancellation, both languages and saved language selection. The frozen executable checks HTTP routes, page assets, offline calculation, cursor, language, CSV export, cache, GDAL and WebP. Playwright tests real browser file selection, drop, zoom, pan, full screen, CSV downloads, cancellation, the common settings panel and responsive layouts. Qt is absent from the bundles. The personal archived reference, when available locally, compares 4,467 smoothed elevations and totals **735.128566 / 735.149565 m**. It is not distributed and is skipped on GitHub.
 
 The shared translation catalog is maintained in `../tools/prepare_translations.py`. Regenerate both platform catalogs with `python ../tools/prepare_translations.py`; a test checks they match.
 

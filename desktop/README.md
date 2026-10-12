@@ -2,19 +2,19 @@
 
 **[Français](README.md) | [English](README.en.md)**
 
-Application Python avec une interface web locale et des bundles autonomes incluant Python et les lecteurs de modèles. Serveur, langue, vérificateur de version et systray : [nico579-commons](https://github.com/nico579/nico579-commons), comme gpxsolar, blink2video, watch2notif et lidar2map. **Aucune installation de Python n'est nécessaire pour les bundles.**
+Application Python avec une interface web locale et des bundles autonomes incluant Python et les lecteurs de modèles. Serveur, langue, vérificateur de version, mise à jour automatique et systray : [nico579-commons](https://github.com/nico579/nico579-commons), comme gpxsolar, blink2video, watch2notif et lidar2map. **Aucune installation de Python n'est nécessaire pour les bundles.**
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.4.1.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.4.1, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.5.0.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.5.0, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.4.1-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.4.1-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python et GDAL sont inclus ; un navigateur suffit pour la page.
-- **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
+- **Windows 10/11, x64** : décompresser `gpx2elev-windows-x86_64.zip`, puis ouvrir `gpx2elev-windows-x86_64/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable ; il peut être renommé ou déplacé, de préférence dans un dossier de l'utilisateur.
+- **Linux, x64** : extraire `gpx2elev-linux-x86_64.tar.gz`, puis lancer `./gpx2elev-linux-x86_64/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python et GDAL sont inclus ; un navigateur suffit pour la page.
+- **macOS** : décompresser `gpx2elev-macos-arm64.zip` pour Apple Silicon (M1 et suivants), ou `gpx2elev-macos-x86_64.zip` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
 
 Le lancement ouvre le navigateur à http://127.0.0.1:8769/ (ou au premier port libre suivant). Le serveur écoute uniquement sur cet ordinateur. Un second lancement rejoint l'instance qui utilise le même dossier de données et lui transmet le GPX éventuel. L'option --new-instance crée un serveur distinct.
 
@@ -34,9 +34,13 @@ L'axe horizontal affiche aussi l'**heure locale issue des points GPX**. Un clic 
 
 ## Mises à jour
 
-Le bouton **Mises à jour**, en bas de la page, recherche manuellement la dernière release stable officielle sur GitHub et affiche sa version, sa taille et ses notes. **Télécharger et installer** sélectionne le bundle Windows, Linux ou macOS correspondant à l'architecture courante, vérifie son SHA-256 et lance son contrôle hors connexion avant de modifier l'installation. **Installer et redémarrer** ferme l'application, remplace son dossier, puis la relance. Les données et le dernier GPX restent dans leur dossier séparé ; une copie de l'ancienne application est conservée et restaurée si le remplacement ou le lancement échoue.
+La mise à jour est celle de nico579-commons, la même que dans gpxsolar, lidar2map et watch2notif. Quand une version plus récente est publiée, un bandeau en haut de la page la signale et l'icône propose **Mettre à jour vers…**. **Installer** télécharge le bundle de ce système, vérifie son SHA-256 et son contenu, lui fait passer son auto-test, puis ferme gpx2elev : un assistant remplace le dossier de l'application, relance la nouvelle version et vérifie qu'elle démarre ; à la moindre défaillance, il remet l'ancienne en place. La page ouverte se recharge d'elle-même sur la nouvelle version. Les données et le dernier GPX restent dans leur dossier séparé.
 
-Le dossier de l'application et son parent doivent être accessibles en écriture, et les données doivent se trouver hors du dossier de l'application. Le dossier extrait doit garder son nom `gpx2elev` (`gpx2elev.app` sur macOS). Avec un lancement depuis les sources Python ou un dossier renommé, **Télécharger** et **Ouvrir le dossier** fournissent le bundle vérifié pour une installation manuelle. Le vérificateur commun interroge GitHub au plus une fois par heure pour signaler une nouvelle version dans l'icône et la page ; sa dernière réponse est conservée localement. L'option --offline désactive cette veille au lancement. Le téléchargement et l'installation restent explicites. Les versions publiées sans ce bouton demandent une première mise à jour manuelle.
+Le bouton **⚙ Réglages…**, à côté de FR / EN, affiche la version installée ; **Vérifier les mises à jour** interroge GitHub tout de suite. Sinon, le vérificateur commun interroge GitHub au plus une fois par heure et conserve sa dernière réponse ; l'option --offline désactive cette veille. L'installation reste toujours une action explicite.
+
+Seul le bundle publié se remplace lui-même : son dossier ne doit rien contenir d'autre, et le dossier parent doit être accessible en écriture. Depuis les sources Python, ou dans un dossier qui contient d'autres fichiers, le bandeau renvoie à la page de la release pour une mise à jour manuelle.
+
+Les versions 0.3 et 0.4 passent à cette version par leur ancien bouton **Mises à jour** : la release garde pour elles les mêmes bundles sous leurs anciens noms (`gpx2elev-<version>-windows-x64.zip`…), qu'il est inutile de télécharger à la main. Leur mécanisme laissait à côté de l'application un dossier `.gpx2elev-update-…` contenant toute l'ancienne version ; la nouvelle le supprime au démarrage.
 
 ## Même protocole que l'application Android
 
@@ -81,9 +85,9 @@ python -m playwright install --with-deps chromium
 python tools/check_web_ui.py
 ```
 
-Activer l'environnement `.venv` avant les commandes d'installation et de lancement. Sur le poste de Nico, préfixer les commandes shell par `rtk proxy`, conformément à RTK.md. `build_bundle.py` construit pour le système courant, exécute le bundle réel, puis produit une archive, son SHA-256 et un rapport de vérification dans `release/`. Les builds GitHub utilisent quatre machines natives Windows x64, Linux x64, macOS Intel et Apple Silicon. PyInstaller ne permet pas de fabriquer les trois plateformes depuis Windows.
+Activer l'environnement `.venv` avant les commandes d'installation et de lancement. Sur le poste de Nico, préfixer les commandes shell par `rtk proxy`, conformément à RTK.md. `build_bundle.py` construit pour le système courant, exécute le bundle réel, puis produit les deux archives (nom commun et ancien nom), leurs SHA-256 et un rapport de vérification dans `release/` ; sur l'archive au nom commun, il rejoue ce que fait l'installateur : extraction contrôlée, puis auto-test de l'exécutable extrait. Les builds GitHub utilisent quatre machines natives Windows x64, Linux x64, macOS Intel et Apple Silicon. PyInstaller ne permet pas de fabriquer les trois plateformes depuis Windows.
 
-Les tests vérifient les extrémités, les segments, les arrêts, l'antiméridien, les altitudes manquantes, l'hystérésis, l'intégrité du cache, le repli, l'annulation, les bords des tuiles, les GeoTIFF publics et les archives ZIP64. Le contrôle du bundle vérifie le serveur HTTP, les assets embarqués, le calcul hors connexion, le curseur, FR/EN, le cache, les CSV, GDAL et WebP. Playwright vérifie dans un vrai navigateur le choix de fichier, le glisser-déposer, le zoom, le déplacement, le plein écran, les téléchargements CSV, l'annulation, le dialogue de mise à jour et les mises en page. Les bundles ne contiennent aucun Qt. La trace personnelle de référence, si elle existe localement dans les ressources Android, vérifie les 4 467 altitudes lissées et les totaux **735,128566 / 735,149565 m** ; ce test reste local et est ignoré dans GitHub.
+Les tests vérifient les extrémités, les segments, les arrêts, l'antiméridien, les altitudes manquantes, l'hystérésis, l'intégrité du cache, le repli, l'annulation, les bords des tuiles, les GeoTIFF publics et les archives ZIP64. Le contrôle du bundle vérifie le serveur HTTP, les assets embarqués, le calcul hors connexion, le curseur, FR/EN, le cache, les CSV, GDAL et WebP. Playwright vérifie dans un vrai navigateur le choix de fichier, le glisser-déposer, le zoom, le déplacement, le plein écran, les téléchargements CSV, l'annulation, le panneau Réglages commun et les mises en page. Les bundles ne contiennent aucun Qt. La trace personnelle de référence, si elle existe localement dans les ressources Android, vérifie les 4 467 altitudes lissées et les totaux **735,128566 / 735,149565 m** ; ce test reste local et est ignoré dans GitHub.
 
 Une utilisation sans interface est également disponible :
 

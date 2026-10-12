@@ -21,13 +21,16 @@ def main(argv=None):
     parser.add_argument("--no-browser", action="store_true", help="Ne pas ouvrir le navigateur")
     parser.add_argument("--no-tray", action="store_true", help="Sans icône de notification")
     parser.add_argument("--new-instance", action="store_true", help="Nouvelle instance sur un port libre")
+    # The shared installer checks a downloaded bundle with --self-test-version.
+    # Versions 0.3 and 0.4 still update to this one with their own installer:
+    # it runs --self-test-report, then restarts with --data-dir and --update-result.
+    parser.add_argument("--self-test-version", help=argparse.SUPPRESS)
     parser.add_argument("--self-test-report", type=Path, help=argparse.SUPPRESS)
-    parser.add_argument("--apply-update", type=Path, help=argparse.SUPPRESS)
     parser.add_argument("--update-result", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
-    if args.apply_update:
-        from .updates import apply_install
-        return apply_install(args.apply_update)
+    if args.self_test_version is not None:
+        from .updates import self_test
+        return self_test(args.self_test_version)
     if args.self_test_report:
         try:
             from .smoke import run_smoke

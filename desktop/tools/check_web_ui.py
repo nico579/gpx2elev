@@ -93,9 +93,15 @@ def check(args):
                 browser = playwright.chromium.launch(channel=args.browser_channel, headless=True)
                 context = browser.new_context(viewport={"width": 1339, "height": 667}, locale="fr-FR", accept_downloads=True)
                 page = context.new_page()
+                # The common settings panel asks for /api/autostart: a 404 means this
+                # application has no start-with-the-system option (reglages.js).
+                def expected(address):
+                    return address.endswith("/api/autostart")
                 page.on("pageerror", lambda error: errors.append(str(error)))
-                page.on("console", lambda message: errors.append(message.text) if message.type == "error" else None)
-                page.on("response", lambda response: errors.append(f"HTTP {response.status} {response.url}") if response.status >= 400 else None)
+                page.on("console", lambda message: errors.append(message.text)
+                        if message.type == "error" and not expected(message.location.get("url", "")) else None)
+                page.on("response", lambda response: errors.append(f"HTTP {response.status} {response.url}")
+                        if response.status >= 400 and not expected(response.url) else None)
                 page.goto(url)
                 expect(page.locator("#import")).to_be_enabled()
                 expect(page.get_by_role("button", name="FR", exact=True)).to_have_attribute("aria-pressed", "true")
@@ -227,16 +233,22 @@ def check(args):
                 page.locator("#about-dialog button.primary").click()
                 checks.append("method, sources and dependency information")
 
+                # Updates are the common banner and settings panel (nico579-maj.js, nico579-reglages.js).
+                version = request("api/init")["version"]
+                assert request("api/maj")["version_locale"] == version
+                expect(page.locator("#nico579-maj")).to_be_hidden()
+                page.locator("#nico579-reglages-bouton").click()
+                settings = page.get_by_role("dialog", name="Réglages")
+                expect(settings).to_contain_text(f"Version {version}")
                 if app:
-                    with patch("gpx2elev.update_web.UpdateClient.check", return_value=None):
-                        page.locator("#updates").click()
-                        expect(page.locator("#update-status")).to_have_text("Vous utilisez la dernière version publiée.")
-                        page.locator("#update-dialog").get_by_role("button", name="EN", exact=True).click()
-                        expect(page.locator("#update-status")).to_have_text("You are using the latest published version.")
-                        expect(page.locator("#update-check")).to_have_text("Check again")
-                        page.locator("#update-close").click()
-                        page.get_by_role("button", name="FR", exact=True).click()
-                    checks.append("manual update dialog, result and FR/EN")
+                    # GitHub is not asked from the tests: it has nothing newer.
+                    with patch.object(app.version_checker, "verifier", return_value=True):
+                        settings.get_by_role("button", name="Vérifier les mises à jour").click()
+                        expect(settings).to_contain_text("Vous avez la dernière version.")
+                page.screenshot(path=str(output / "settings.png"))
+                page.keyboard.press("Escape")
+                expect(settings).to_be_hidden()
+                checks.append("common settings panel: version, update check and closing")
 
                 before = request("api/result")
                 page.locator("#clear-cache").click()

@@ -11,9 +11,9 @@ import threading
 import urllib.request
 
 import numpy as np
-from nico579_commons import atomique, environnement, langue, maj, serveweb
+from nico579_commons import atomique, environnement, langue, maj, maj_archive, maj_install, serveweb
 
-from . import __version__
+from . import __version__, updates
 from .cache import cache_sizes, clear_cache
 from .chart_data import ChartObservations
 from .core import MAX_GPX_BYTES
@@ -21,7 +21,6 @@ from .i18n import CATALOG
 from .providers import Cancelled, RANKING, Source, atomic_write
 from .runtime import ASSETS, GUI, data_directory
 from .service import calculate, export_json, export_profile, export_summary
-from .update_web import UpdateManager
 
 WEB_TRANSLATIONS = json.loads((GUI / "translations.json").read_text(encoding="utf-8"))
 
@@ -61,12 +60,17 @@ class Application:
         self.tray = None
         self.restart_requested = False
         self.refresh_cache()
-        self.version_checker = maj.Verificateur("nico579/gpx2elev", __version__, cache=self.directory / "maj.json")
-        self.updates = UpdateManager(self.directory, self.stop, self.busy)
-        self.updates.advertised = self.version_checker.disponible
+        self.version_checker = maj.Verificateur(updates.REPOSITORY, __version__, cache=self.directory / "maj.json")
+        # Arguments of the new version after an update; serve() adds the port.
+        self.relaunch = ["--data-dir", str(self.directory), "--no-browser"]
+        self.installer = updates.installer(self.version_checker, self.stop, lambda: self.relaunch)
 
     def busy(self):
         return self.worker is not None
+
+    def updating(self):
+        """The new version is ready: gpx2elev is about to exit for the swap."""
+        return self.installer.etat()["etat"] == "redemarrage"
 
     def load_language(self):
         settings = atomique.lire_json(self.directory / "settings.json", {})
@@ -116,7 +120,7 @@ class Application:
         if len(data) > MAX_GPX_BYTES:
             raise ValueError("Le GPX dépasse 20 Mo.")
         with self.lock:
-            if self.busy() or self.updates.pending_update is not None:
+            if self.busy() or self.updating():
                 return {"error": "Une opération est déjà en cours."}
             self.current = (name, data)
             self.online, self.model = online, model
@@ -272,7 +276,7 @@ class Application:
         if not isinstance(payload, dict) or payload.get("confirm") is not True:
             return {"error": "Confirmation requise."}
         with self.lock:
-            if self.busy() or self.updates.pending_update is not None:
+            if self.busy() or self.updating():
                 return {"error": "Une opération est déjà en cours."}
             self.state.update(phase="cache", message="Suppression du cache…", completed=0, total=0)
             self.worker = threading.Thread(target=self._clear, daemon=True)
@@ -302,21 +306,16 @@ class Application:
         self.stop()
         if self.worker:
             self.worker.join(40)
-        self.updates.close()
-
-    def install_update(self, payload):
-        with self.lock:
-            return self.updates.install(payload)
 
     def routes(self):
         language_get, language_post = langue.routes(self.load_language, self.save_language, enregistrer_detection=True)
+        # /api/maj, /api/maj-installer and /api/maj-verifier: the common update
+        # banner (nico579-maj.js) and settings panel (nico579-reglages.js).
+        update_get, update_post = maj_install.routes(self.installer, lambda: self.load_language() or "fr")
         return ({"init": self.init, "state": self.snapshot, "result": self.get_result, "select": self.select,
-                 "export": self.export, "update-state": self.updates.snapshot, **language_get},
+                 "export": self.export, **language_get, **update_get},
                 {"upload": self.upload, "open": self.open_request, "recalculate": self.recalculate,
-                 "cancel": self.cancel, "clear-cache": self.clear, "quit": self.stop,
-                 "update-check": self.updates.check, "update-download": self.updates.download,
-                 "update-cancel": self.updates.cancel, "update-install": self.install_update,
-                 "update-folder": self.updates.open_folder, **language_post})
+                 "cancel": self.cancel, "clear-cache": self.clear, "quit": self.stop, **language_post, **update_post})
 
 
 class Handler(serveweb.Handler):
@@ -358,6 +357,17 @@ def _request(port, route, payload=None):
 
 
 
+def _tidy_legacy_updates(stop_event, delay=15):
+    """Remove what the updates of versions 0.3 and 0.4 left next to this
+    installation, once their helper, which started this process, has exited."""
+    if stop_event.wait(delay):
+        return
+    try:
+        updates.remove_legacy_updates(updates.disposition().install_root)
+    except (maj_archive.ErreurMiseAJour, OSError):
+        pass  # From sources or outside the published bundle: nothing of ours.
+
+
 def tray_actions(app, url, command):
     from nico579_commons import raccourci, tray
     import webbrowser
@@ -366,12 +376,17 @@ def tray_actions(app, url, command):
         app.restart_requested = True
         app.stop()
 
-    def newer():
-        state = app.updates.snapshot()
-        return state["advertised_version"] or (state["release"]["version"] if state["release"] else None)
+    def update():
+        # The published bundle installs the new version by itself; otherwise
+        # (sources, a folder that is not the bundle) the release page opens.
+        if app.installer.possible()[0]:
+            app.installer.demarrer()
+            return
+        info = app.version_checker.disponible()
+        webbrowser.open(info["page"] if info else app.version_checker.page_des_releases)
 
     return tray.Actions(ouvrir=lambda: webbrowser.open(url), redemarrer=restart, arreter=app.stop,
-        version_disponible=newer, mettre_a_jour=lambda: webbrowser.open(url + "?updates=1"),
+        version_disponible=lambda: (app.version_checker.disponible() or {}).get("version"), mettre_a_jour=update,
         creer_raccourci=lambda: raccourci.creer("gpx2elev", command, Path(sys.executable).parent,
                                                icone=ASSETS / "gpx2elev.ico", langue=app.load_language() or "fr"),
         langue=lambda: app.load_language() or "fr", mettre_a_jour_referme=False)
@@ -417,18 +432,22 @@ def serve(args):
             # Sans console, une erreur ici arrêterait l'application sans rien montrer.
             app.report_open_error(exc)
         if args.update_result:
+            # Versions 0.3 and 0.4 restart the version they installed with this argument.
             result = atomique.lire_json(args.update_result, {})
             if isinstance(result, dict) and result.get("status") == "ERROR":
                 app.state.update(phase="error", message="La mise à jour a échoué. L\'ancienne version a été restaurée.")
         if not args.no_browser:
             webbrowser.open(url)
-        command = ([sys.executable] if getattr(sys, "frozen", False) else
-                   [sys.executable, str(Path(__file__).resolve().parents[1] / "launcher.py")])
-        command += ["--data-dir", str(directory), "--port", str(port)]
+        arguments = ["--data-dir", str(directory), "--port", str(port)]
         if args.no_browser:
-            command.append("--no-browser")
+            arguments.append("--no-browser")
         if args.no_tray:
-            command.append("--no-tray")
+            arguments.append("--no-tray")
+        command = ([sys.executable] if getattr(sys, "frozen", False) else
+                   [sys.executable, str(Path(__file__).resolve().parents[1] / "launcher.py")]) + arguments
+        # After an update the open page reloads itself (nico579-maj.js): no second tab.
+        app.relaunch = arguments if args.no_browser else [*arguments, "--no-browser"]
+        threading.Thread(target=_tidy_legacy_updates, args=(app.stop_event,), daemon=True).start()
 
         if not args.offline:
             app.version_checker.veiller(app.stop_event)
@@ -449,8 +468,6 @@ def serve(args):
         if server:
             server.shutdown()
             server.server_close()
-        if app.updates.pending_update:
-            (app.updates.pending_update.parent / "ready").write_text("ready", encoding="utf-8")
         if app.restart_requested:
             relance.relancer(command, nom="gpx2elev")
     return 0
