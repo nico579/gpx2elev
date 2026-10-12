@@ -113,13 +113,13 @@ class Restart(unittest.TestCase):
             with patch("gpx2elev.web.Application", Recording), patch("webbrowser.open") as opened,                     patch("sys.stdout", io.StringIO()):
                 thread = threading.Thread(target=serve, args=(argparse.Namespace(**values),))
                 thread.start()
-                deadline = time.monotonic() + 10
+                deadline = time.monotonic() + 60  # The macOS Intel runner is slow to start a server.
                 while not (created and "--port" in created[0].relaunch) and time.monotonic() < deadline:
                     time.sleep(.01)
                 installer = created[0].installer
                 [arguments] = maj_install.processus_a_relancer(installer.app, installer.verbes_relance())
                 installer.quitter()  # What the installer calls once its helper is ready.
-                thread.join(10)
+                thread.join(60)
                 self.assertFalse(thread.is_alive())
             return arguments, str(Path(directory).resolve()), opened.call_count
 
