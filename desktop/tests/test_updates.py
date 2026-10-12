@@ -12,7 +12,7 @@ import unittest
 from unittest.mock import patch
 import zipfile
 
-from gpx2elev.updates import (LATEST_URL, REPOSITORY, Release, UpdateCancelled, UpdateClient, UpdateError,
+from gpx2elev.updates import (LATEST_URL, REPOSITORY, UpdateCancelled, UpdateClient, UpdateError,
     apply_install, bundle_binary, discard_install, extract_bundle, installed_bundle, parse_release, platform_name, prepare_install, version_tuple)
 from gpx2elev.updates import _subprocess_environment
 

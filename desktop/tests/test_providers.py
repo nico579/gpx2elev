@@ -1,6 +1,5 @@
 import csv
 import errno
-import io
 from pathlib import Path
 import tempfile
 import threading
@@ -13,8 +12,8 @@ from PIL import Image
 import rasterio
 from rasterio.transform import from_origin
 
-from gpx2elev.providers import (Cancelled, MissingCoverage, ProfileCache, PublicModels,
-    RANKING, RemoteZip, Repository, Source, bilinear)
+from gpx2elev.providers import (Cancelled, ProfileCache, PublicModels,
+    RemoteZip, Repository, Source, bilinear)
 
 RESOURCES = Path(__file__).resolve().parents[2] / "app/src/test/resources"
 

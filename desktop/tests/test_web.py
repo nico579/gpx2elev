@@ -14,13 +14,11 @@ from unittest.mock import patch
 import urllib.error
 import urllib.request
 
-import numpy as np
 from nico579_commons import serveweb, tray
 
 from gpx2elev.core import parse_gpx, prepare
 from gpx2elev.i18n import CATALOG, number, translate
 from gpx2elev.providers import Cancelled, ProfileCache, Source
-from gpx2elev.runtime import GUI, data_directory
 from gpx2elev.service import calculate
 from gpx2elev.smoke import SYNTHETIC_GPX, run_smoke
 from gpx2elev.web import Application, start_server, tray_actions

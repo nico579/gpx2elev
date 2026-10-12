@@ -1,0 +1,131 @@
+name: CI
+
+# Chaque push sur main et chaque pull request testent l'application Android et
+# les versions ordinateur, comme dans les autres projets. Release ne tourne que
+# sur un tag vX.Y.Z, pour construire, signer et publier.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Versions, traductions et lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: desktop/requirements-test.txt
+      - name: Même version pour Android et les ordinateurs
+        run: python tools/check_versions.py
+      - name: Catalogues de traduction générés depuis leur source
+        run: |
+          python tools/prepare_translations.py
+          git diff --exit-code -- app/src/main/assets/translations.json desktop/gpx2elev/assets/translations.json
+      - name: Lint Python et syntaxe JavaScript
+        run: |
+          python -m pip install -r desktop/requirements-test.txt
+          python -m ruff check desktop/gpx2elev desktop/tools desktop/tests desktop/launcher.py tools
+          node --check desktop/gpx2elev/assets/web/app.js
+          node --check desktop/gpx2elev/assets/web/chart.js
+          node --check desktop/gpx2elev/assets/web/web_bridge.js
+
+  android:
+    name: Android (tests, lint, APK)
+    needs: lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+      - name: Install Android SDK
+        run: |
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDK_MANAGER"
+          "$SDK_MANAGER" 'platforms;android-34' 'build-tools;34.0.0'
+      # Sans clé de projet, Gradle signe avec la clé de débogage standard :
+      # mêmes tâches que Release, sans secret, et un APK jamais distribué.
+      - name: Tests, lint et APK release
+        run: |
+          chmod +x gradlew
+          ./gradlew testDebugUnitTest lintRelease assembleRelease --console=plain --no-daemon --max-workers=2
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ci-android
+          path: |
+            app/build/reports/
+            app/build/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  desktop:
+    name: Ordinateur (${{ matrix.artifact }})
+    needs: lint
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-2022
+            artifact: windows-x64
+            binary: dist/gpx2elev/gpx2elev.exe
+          - runner: ubuntu-22.04
+            artifact: linux-x64
+            binary: dist/gpx2elev/gpx2elev
+          - runner: macos-15-intel
+            artifact: macos-x64
+            binary: dist/gpx2elev.app/Contents/MacOS/gpx2elev
+          - runner: macos-14
+            artifact: macos-arm64
+            binary: dist/gpx2elev.app/Contents/MacOS/gpx2elev
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: desktop/requirements*.txt
+      - name: Dépendances figées
+        run: python -m pip install -r requirements-build.txt -r requirements-test.txt
+      - name: Tests du moteur, du serveur, des mises à jour et du graphique
+        run: python -m unittest discover -s tests -v
+      - name: Exécutable construit et vérifié
+        run: python tools/build_bundle.py
+      - name: Interface web dans Chromium, sources puis exécutable
+        run: |
+          python -m playwright install --with-deps chromium
+          python tools/check_web_ui.py --output qa/source
+          python tools/check_web_ui.py --executable "${{ matrix.binary }}" --output qa/packaged
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: ci-qa-${{ matrix.artifact }}
+          path: desktop/qa/
+          if-no-files-found: ignore
+          retention-days: 14

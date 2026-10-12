@@ -14,9 +14,9 @@ from rasterio.windows import Window
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
-from analyse_fourchette_denivele import read_existing_nominal
-from analyse_protocole_propose import spatial_gaussian
-import compare_deniveles as c
+from analyse_fourchette_denivele import read_existing_nominal  # noqa: E402
+from analyse_protocole_propose import spatial_gaussian  # noqa: E402
+import compare_deniveles as c  # noqa: E402
 
 
 def main():

@@ -8,7 +8,7 @@ root = Path(SPECPATH)
 assets = root / "build/assets"
 resources = root.parent / "app/src/test/resources"
 datas = [(str(assets / "licenses"), "licenses"), (str(root / "README.md"), "."),
-         (str(root / "README.en.md"), ".")]
+         (str(root / "README.en.md"), "."), (str(root / "LICENSE"), ".")]
 datas += [(str(root / "gpx2elev/assets"), "gpx2elev/assets")]
 datas += collect_data_files("rasterio")
 datas += collect_data_files("nico579_commons")
