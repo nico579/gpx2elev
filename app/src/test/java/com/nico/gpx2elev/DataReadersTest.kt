@@ -70,6 +70,24 @@ class DataReadersTest {
         assertTrue(offline.fromCache); assertEquals(ElevationSource.FABDEM, offline.source); assertTrue(calls.isEmpty())
     }
 
+    @Test fun cachedFallbackIsReusedOnlineWithoutRetryingBetterModels() {
+        val calls = mutableListOf<ElevationSource>()
+        val reader = object : ModelReader {
+            override fun read(source: ElevationSource, points: List<GeoPoint>, progress: (Progress) -> Unit): DoubleArray {
+                calls += source
+                return if (source == ElevationSource.IGN) doubleArrayOf(Double.NaN, Double.NaN) else doubleArrayOf(100.0, 105.0)
+            }
+        }
+        val folder = temporary.newFolder()
+        val points = listOf(GeoPoint(45.0, 5.0), GeoPoint(45.001, 5.0))
+        val first = ElevationRepository(folder, reader).obtain(points, true) {}
+        assertEquals(ElevationSource.MAPTERHORN, first.source)
+        calls.clear()
+        // Le repli en cache est définitif : l'IGN n'est pas réinterrogé, comme sur ordinateur.
+        val again = ElevationRepository(folder, reader).obtain(points, true) {}
+        assertTrue(again.fromCache); assertEquals(ElevationSource.MAPTERHORN, again.source); assertTrue(calls.isEmpty())
+    }
+
     @Test fun rejectsCorruptedCacheAndNeverTreatsNoDataAsAltitude() {
         val dir = temporary.newFolder()
         var calls = 0
