@@ -1,4 +1,4 @@
-PySide6-Essentials==6.11.2
+nico579-commons[tray]==0.4.15
 numpy==1.26.4
 Pillow==11.3.0
 requests==2.34.2

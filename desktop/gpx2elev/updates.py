@@ -310,7 +310,7 @@ def extract_bundle(archive, destination, system=None, cancel=None):
 
 
 def verify_bundle(root, report, expected_version=None, cancel=None):
-    process = _launch([str(bundle_binary(root)), "--self-test-report", str(report)], root, {"QT_QPA_PLATFORM": "offscreen"})
+    process = _launch([str(bundle_binary(root)), "--self-test-report", str(report)], root)
     try:
         deadline = time.monotonic() + 90
         while process.poll() is None:

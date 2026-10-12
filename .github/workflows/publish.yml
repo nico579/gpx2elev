@@ -43,6 +43,11 @@ jobs:
           base = [line for line in wheel.read(metadata).decode().splitlines()
                   if line.startswith("Requires-Dist:") and "extra ==" not in line]
           assert base and not any("PySide6" in line for line in base), base
+          dependencies = [line for line in wheel.read(metadata).decode().splitlines()
+                          if line.startswith("Requires-Dist:")]
+          assert not any(name.lower() in line.lower() for name in ("PySide", "PyQt", "qtpy") for line in dependencies), dependencies
+          for asset in ("version.txt", "gpx2elev.ico", "web/index.html", "web/app.js", "web/chart.js", "web/style.css", "web/web_bridge.js", "web/translations.json"):
+              assert "gpx2elev/assets/" + asset in wheel.namelist(), asset
           print("\n".join(base))
           EOF
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -21,18 +21,14 @@ def run(args, **kwargs):
 
 
 def licenses_and_icons():
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    from PySide6.QtWidgets import QApplication
-    from gpx2elev.ui import app_icon
     from PIL import Image
     assets = ROOT / "build/assets"
     licenses = assets / "licenses"
     licenses.mkdir(parents=True, exist_ok=True)
-    app = QApplication.instance() or QApplication(["gpx2elev-build"])
-    icon = app_icon().pixmap(128, 128)
-    icon.save(str(assets / "icon.png"))
-    with Image.open(assets / "icon.png") as image:
-        image.save(assets / "icon.ico", sizes=[(16, 16), (32, 32), (48, 48), (64, 64), (128, 128)])
+    icon = ROOT / "gpx2elev/assets/gpx2elev.png"
+    shutil.copy2(icon, assets / "icon.png")
+    shutil.copy2(ROOT / "gpx2elev/assets/gpx2elev.ico", assets / "icon.ico")
+    with Image.open(icon) as image:
         image.resize((1024, 1024)).save(assets / "icon.icns")
     inventory = []
     for distribution in metadata.distributions():
@@ -51,11 +47,16 @@ def licenses_and_icons():
                     shutil.copy2(source, destination)
     (licenses / "DEPENDENCIES.json").write_text(json.dumps(inventory, indent=2), encoding="utf-8")
     shutil.copy2(ROOT / "THIRD_PARTY.md", licenses / "THIRD_PARTY.md")
-    shutil.copytree(ROOT / "licenses", licenses / "Qt", dirs_exist_ok=True)
     shutil.copy2(ROOT / "gpx2elev/assets/OFL.txt", licenses / "NotoSans-OFL.txt")
 
 
 def main():
+    for name in ("build", "dist"):
+        path = (ROOT / name).resolve()
+        if not path.is_relative_to(ROOT.resolve()):
+            raise RuntimeError("Build path escapes the desktop checkout.")
+        if path.exists():
+            shutil.rmtree(path)
     licenses_and_icons()
     run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "bundle.spec"])
     release = ROOT / "release"
@@ -73,7 +74,6 @@ def main():
     # Exercise the executable, not the source interpreter. Failure prevents packaging/release.
     report = release / f"verification-{system}-{arch}.json"
     env = os.environ.copy()
-    env["QT_QPA_PLATFORM"] = "offscreen"
     run([str(binary), "--self-test-report", str(report)], env=env, timeout=90)
     if json.loads(report.read_text(encoding="utf-8"))["status"] != "OK":
         raise RuntimeError("Le bundle a échoué à sa vérification.")

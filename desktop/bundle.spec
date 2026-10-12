@@ -11,16 +11,18 @@ datas = [(str(assets / "licenses"), "licenses"), (str(root / "README.md"), "."),
          (str(root / "README.en.md"), ".")]
 datas += [(str(root / "gpx2elev/assets"), "gpx2elev/assets")]
 datas += collect_data_files("rasterio")
+datas += collect_data_files("nico579_commons")
 datas += [(str(resources / name), "smoke_data") for name in ("copernicus.tif", "fabdem.tif", "mapterhorn.webp")]
 
 a = Analysis([str(root / "launcher.py")], pathex=[str(root)], binaries=[], datas=datas,
-             hiddenimports=collect_submodules("rasterio"),
+             hiddenimports=collect_submodules("rasterio") + ["pystray." + {"win32": "_win32", "darwin": "_darwin"}.get(sys.platform, "_xorg")],
              hookspath=[], hooksconfig={}, runtime_hooks=[],
-             excludes=["tkinter", "PySide6.QtQml", "PySide6.QtQuick", "PySide6.QtNetwork"], noarchive=False)
+             excludes=["tkinter", "PySide6", "PySide2", "PyQt6", "PyQt5", "qtpy"], noarchive=False)
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="gpx2elev", debug=False,
           bootloader_ignore_signals=False, strip=False, upx=False, console=False,
           icon=str(assets / "icon.ico") if sys.platform == "win32" else None,
+          argv_emulation=sys.platform == "darwin",
           target_arch=None, codesign_identity=None, entitlements_file=None)
 coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False, name="gpx2elev")
 if sys.platform == "darwin":

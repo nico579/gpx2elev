@@ -2,21 +2,25 @@
 
 **[English](README.en.md) | [Français](README.md)**
 
-A Python desktop application with standalone bundles containing Python, Qt and elevation readers. **You do not need to install Python to use a bundle.**
+A Python application with a local web interface and standalone bundles containing Python and elevation readers. Server, language, version checker and system tray: [nico579-commons](https://github.com/nico579/nico579-commons), like gpxsolar, blink2video, watch2notif and lidar2map. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.7**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.4.0**. GitHub Actions builds all five release assets and verifies them before publication.
 
 The interface adapts to resizing and maximizing. If the screen is too short, a scrollbar provides access to the bottom of the page; card values remain fully visible and controls do not overlap the chart.
 
 ## Open the application
 
 - **Windows 10/11, x64:** extract the `windows-x64.zip` archive and open `gpx2elev/gpx2elev.exe`. Keep the entire extracted folder.
-- **Linux, x64:** extract `linux-x64.tar.gz` and run `./gpx2elev/gpx2elev`. Built on Ubuntu 22.04; requires glibc 2.35 or later and desktop X11/Wayland display components. Python, Qt and GDAL are included.
+- **Linux, x64:** extract `linux-x64.tar.gz` and run `./gpx2elev/gpx2elev`. Built on Ubuntu 22.04; requires glibc 2.35 or later. Python and GDAL are included; the page runs in your browser.
 - **macOS:** use `macos-arm64` for Apple Silicon or `macos-x64` for Intel, extract the archive and open `gpx2elev.app`. Bundles are tested on macOS 14 (Apple Silicon) and macOS 15 (Intel). They are not notarized; if blocked, use **System Settings → Privacy & Security → Open Anyway**.
+
+Launching opens http://127.0.0.1:8769/ in your browser, or the next available port. The server listens only on this computer. A second launch joins the instance using the same data directory and forwards any GPX argument. The --new-instance option starts a separate server.
+
+The icon is provided directly by nico579_commons.tray, with the same menu: **Open**, **Update to…** when a newer version is known, **Restart**, **Stop** and **Create a Desktop shortcut**. Closing the tab leaves the server running; use **Stop** in the icon or page to quit. The page also works without a notification area.
 
 Select **FR / EN** in the header. The choice is saved and takes effect immediately without recalculating. On first launch, French is selected for a French-language system and English otherwise. Displayed numbers follow the selected language. CSV schemas and numeric values remain stable across languages.
 
-Choose a GPX, drop it into the window or pass its path on the command line. Finder file-open events are supported. On Windows you can select the executable through **Open with → Choose another app**. File associations are not changed automatically.
+Choose a GPX, drop it into the page or pass its path on the command line. The macOS bundle receives Finder files when launched. On Windows you can select the executable through **Open with → Choose another app**. File associations are not changed automatically.
 
 The first calculation requires Internet access. The screen shows the model, ascent, descent, distance, smoothed profile and raw/filtered GPX totals. CSV exports provide summary results and the full profile. Six exported decimal places help verification; they do not represent physical accuracy to the micrometre.
 
@@ -28,7 +32,7 @@ The horizontal axis also shows **local time from GPX observations**. Click to pl
 
 ## Updates
 
-The **Updates** button at the bottom of the window manually checks GitHub for the latest official stable release and shows its version, size and release notes. **Download and install** selects the bundle for the current Windows, Linux or macOS architecture, verifies its SHA-256 and runs its offline self-check before changing the installation. **Install and restart** closes the application, replaces its folder and launches it again. Data and the last GPX remain in their separate folder; the previous application is retained and restored if replacement or launch fails.
+The **Updates** button at the bottom of the page manually checks GitHub for the latest official stable release and shows its version, size and release notes. **Download and install** selects the bundle for the current Windows, Linux or macOS architecture, verifies its SHA-256 and runs its offline self-check before changing the installation. **Install and restart** closes the application, replaces its folder and launches it again. Data and the last GPX remain in their separate folder; the previous application is retained and restored if replacement or launch fails.
 
 The application folder and its parent must be writable, and data must reside outside the application folder. Keep the extracted folder named `gpx2elev` (`gpx2elev.app` on macOS). When running from Python source or a renamed folder, **Download** and **Open folder** provide a verified bundle for manual installation. Checks never run automatically; Internet access is required after requesting a check. Published versions without this button require one manual upgrade first.
 
@@ -70,11 +74,14 @@ python -m pip install -r requirements-build.txt
 python -m gpx2elev
 python -m unittest discover -s tests -v
 python tools/build_bundle.py
+python -m pip install -r requirements-test.txt
+python -m playwright install --with-deps chromium
+python tools/check_web_ui.py
 ```
 
 Activate `.venv` before installation and launch. `build_bundle.py` builds for the current platform, runs the frozen executable and generates an archive, SHA-256 checksum and verification report in `release/`. GitHub builds use native Windows, Linux and both macOS architectures.
 
-Tests cover the numerical protocol, readers, cache, cancellation, both languages and saved language selection. The frozen executable exercises file drop, background calculation, CSV export, Qt rendering, GDAL and WebP. The personal archived reference, when available locally, compares 4,467 smoothed elevations and totals **735.128566 / 735.149565 m**. It is not distributed and is skipped on GitHub.
+Tests cover the numerical protocol, readers, cache, cancellation, both languages and saved language selection. The frozen executable checks HTTP routes, page assets, offline calculation, cursor, language, CSV export, cache, GDAL and WebP. Playwright tests real browser file selection, drop, zoom, pan, full screen, CSV downloads, cancellation, update UI and responsive layouts. Qt is absent from the bundles. The personal archived reference, when available locally, compares 4,467 smoothed elevations and totals **735.128566 / 735.149565 m**. It is not distributed and is skipped on GitHub.
 
 The shared translation catalog is maintained in `../tools/prepare_translations.py`. Regenerate both platform catalogs with `python ../tools/prepare_translations.py`; a test checks they match.
 
@@ -86,3 +93,9 @@ python -m gpx2elev track.gpx --calculate --offline --data-dir my-cache
 ```
 
 The standalone executable accepts the same arguments. See [attributions and licences](THIRD_PARTY.md) and the [main README](../README.en.md).
+
+The common version checker queries GitHub at most once an hour to announce updates in the icon and page, retaining its last answer locally. Starting with --offline disables this watcher. Downloading and installing remain explicit.
+
+To test the packaged browser server on Windows: python tools/check_web_ui.py --executable dist/gpx2elev/gpx2elev.exe. Add --browser-channel msedge to use installed Edge. Reports, screenshots and synthetic CSV exports are in qa/web/. Data remains in the OS data folder Nico/gpx2elev; --data-dir or GPX2ELEV_HOME select another location.
+
+For a service or scripted test: python -m gpx2elev --serve-gui --no-browser --no-tray --port 8769.

@@ -2,23 +2,27 @@
 
 **[Français](README.md) | [English](README.en.md)**
 
-Application Python de bureau, avec des bundles autonomes incluant Python, Qt et les lecteurs de modèles. **Aucune installation de Python n'est nécessaire pour les bundles.**
+Application Python avec une interface web locale et des bundles autonomes incluant Python et les lecteurs de modèles. Serveur, langue, vérificateur de version et systray : [nico579-commons](https://github.com/nico579/nico579-commons), comme gpxsolar, blink2video, watch2notif et lidar2map. **Aucune installation de Python n'est nécessaire pour les bundles.**
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.3.7.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.7, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.4.0.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.4.0, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.7-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.3.7-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.4.0-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.4.0-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python et GDAL sont inclus ; un navigateur suffit pour la page.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
+
+Le lancement ouvre le navigateur à http://127.0.0.1:8769/ (ou au premier port libre suivant). Le serveur écoute uniquement sur cet ordinateur. Un second lancement rejoint l'instance qui utilise le même dossier de données et lui transmet le GPX éventuel. L'option --new-instance crée un serveur distinct.
+
+L'icône utilise directement nico579_commons.tray, avec le même menu : **Ouvrir**, **Mettre à jour vers…** lorsqu'une version est connue, **Redémarrer**, **Arrêter**, **Créer un raccourci sur le Bureau**. Fermer l'onglet laisse le serveur actif ; utiliser **Arrêter** dans l'icône ou la page pour quitter. Sans zone de notification, la page fonctionne aussi.
 
 Le sélecteur **FR / EN** de l’en-tête change la langue immédiatement et mémorise le choix. Les nombres affichés suivent la langue ; les CSV gardent leur schéma et leurs valeurs.
 
-Choisir un GPX, ou le déposer dans la fenêtre. L'ouverture avec l'application accepte également un chemin GPX en argument ; macOS accepte les événements d'ouverture du Finder. Sur Windows, **Ouvrir avec → Choisir une autre application** permet de sélectionner l'exécutable. Aucune association de fichier n'est modifiée automatiquement.
+Choisir un GPX, ou le déposer dans la page. L'application accepte aussi un chemin GPX en argument ; le bundle macOS reprend les fichiers reçus au lancement depuis le Finder. Sur Windows, **Ouvrir avec → Choisir une autre application** permet de sélectionner l'exécutable. Aucune association de fichier n'est modifiée automatiquement.
 
 Le premier calcul nécessite Internet. Le modèle, le D+, le D−, la distance, le profil lissé et les altitudes GPX brutes/filtrées sont présentés. Deux exports CSV permettent d'enregistrer les résultats et chaque position du profil. Les nombres affichés sont arrondis ; les exports conservent six décimales pour la vérification, sans prétendre à une précision physique au micromètre.
 
@@ -30,9 +34,9 @@ L'axe horizontal affiche aussi l'**heure locale issue des points GPX**. Un clic 
 
 ## Mises à jour
 
-Le bouton **Mises à jour**, en bas de la fenêtre, recherche manuellement la dernière release stable officielle sur GitHub et affiche sa version, sa taille et ses notes. **Télécharger et installer** sélectionne le bundle Windows, Linux ou macOS correspondant à l'architecture courante, vérifie son SHA-256 et lance son contrôle hors connexion avant de modifier l'installation. **Installer et redémarrer** ferme l'application, remplace son dossier, puis la relance. Les données et le dernier GPX restent dans leur dossier séparé ; une copie de l'ancienne application est conservée et restaurée si le remplacement ou le lancement échoue.
+Le bouton **Mises à jour**, en bas de la page, recherche manuellement la dernière release stable officielle sur GitHub et affiche sa version, sa taille et ses notes. **Télécharger et installer** sélectionne le bundle Windows, Linux ou macOS correspondant à l'architecture courante, vérifie son SHA-256 et lance son contrôle hors connexion avant de modifier l'installation. **Installer et redémarrer** ferme l'application, remplace son dossier, puis la relance. Les données et le dernier GPX restent dans leur dossier séparé ; une copie de l'ancienne application est conservée et restaurée si le remplacement ou le lancement échoue.
 
-Le dossier de l'application et son parent doivent être accessibles en écriture, et les données doivent se trouver hors du dossier de l'application. Le dossier extrait doit garder son nom `gpx2elev` (`gpx2elev.app` sur macOS). Avec un lancement depuis les sources Python ou un dossier renommé, **Télécharger** et **Ouvrir le dossier** fournissent le bundle vérifié pour une installation manuelle. Aucun contrôle n'est lancé automatiquement ; Internet est nécessaire après une demande de vérification. Les versions publiées sans ce bouton demandent une première mise à jour manuelle.
+Le dossier de l'application et son parent doivent être accessibles en écriture, et les données doivent se trouver hors du dossier de l'application. Le dossier extrait doit garder son nom `gpx2elev` (`gpx2elev.app` sur macOS). Avec un lancement depuis les sources Python ou un dossier renommé, **Télécharger** et **Ouvrir le dossier** fournissent le bundle vérifié pour une installation manuelle. Le vérificateur commun interroge GitHub au plus une fois par heure pour signaler une nouvelle version dans l'icône et la page ; sa dernière réponse est conservée localement. L'option --offline désactive cette veille au lancement. Le téléchargement et l'installation restent explicites. Les versions publiées sans ce bouton demandent une première mise à jour manuelle.
 
 ## Même protocole que l'application Android
 
@@ -72,11 +76,14 @@ python -m pip install -r requirements-build.txt
 python -m gpx2elev
 python -m unittest discover -s tests -v
 python tools/build_bundle.py
+python -m pip install -r requirements-test.txt
+python -m playwright install --with-deps chromium
+python tools/check_web_ui.py
 ```
 
 Activer l'environnement `.venv` avant les commandes d'installation et de lancement. Sur le poste de Nico, préfixer les commandes shell par `rtk proxy`, conformément à RTK.md. `build_bundle.py` construit pour le système courant, exécute le bundle réel, puis produit une archive, son SHA-256 et un rapport de vérification dans `release/`. Les builds GitHub utilisent quatre machines natives Windows x64, Linux x64, macOS Intel et Apple Silicon. PyInstaller ne permet pas de fabriquer les trois plateformes depuis Windows.
 
-Les tests vérifient les extrémités, les segments, les arrêts, l'antiméridien, les altitudes manquantes, l'hystérésis, l'intégrité du cache, le repli, l'annulation, les bords des tuiles, les GeoTIFF publics et les archives ZIP64. L'interface est réellement rendue avec Qt ; le contrôle du bundle vérifie le glisser-déposer, le calcul en tâche de fond, le cache, les CSV, GDAL et WebP. La trace personnelle de référence, si elle existe localement dans les ressources Android, vérifie les 4 467 altitudes lissées et les totaux **735,128566 / 735,149565 m** ; ce test reste local et est ignoré dans GitHub.
+Les tests vérifient les extrémités, les segments, les arrêts, l'antiméridien, les altitudes manquantes, l'hystérésis, l'intégrité du cache, le repli, l'annulation, les bords des tuiles, les GeoTIFF publics et les archives ZIP64. Le contrôle du bundle vérifie le serveur HTTP, les assets embarqués, le calcul hors connexion, le curseur, FR/EN, le cache, les CSV, GDAL et WebP. Playwright vérifie dans un vrai navigateur le choix de fichier, le glisser-déposer, le zoom, le déplacement, le plein écran, les téléchargements CSV, l'annulation, le dialogue de mise à jour et les mises en page. Les bundles ne contiennent aucun Qt. La trace personnelle de référence, si elle existe localement dans les ressources Android, vérifie les 4 467 altitudes lissées et les totaux **735,128566 / 735,149565 m** ; ce test reste local et est ignoré dans GitHub.
 
 Une utilisation sans interface est également disponible :
 
@@ -86,3 +93,7 @@ python -m gpx2elev trace.gpx --calculate --offline --data-dir mon-cache
 ```
 
 Les mêmes arguments fonctionnent avec le binaire autonome. Voir [les attributions et licences](THIRD_PARTY.md).
+
+Les mêmes contrôles navigateur peuvent viser le binaire : python tools/check_web_ui.py --executable dist/gpx2elev/gpx2elev.exe sous Windows. Ajouter --browser-channel msedge pour utiliser Edge déjà installé. Rapports, captures et CSV synthétiques sont dans qa/web/.
+
+Les données existantes restent dans le dossier Nico/gpx2elev de l'OS. Les options --data-dir ou GPX2ELEV_HOME choisissent un autre emplacement. Pour un service ou un essai, lancer python -m gpx2elev --serve-gui --no-browser --no-tray --port 8769.

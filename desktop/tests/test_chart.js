@@ -1,0 +1,16 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {visiblePoints,nativeRuns,timeAt,clamp}=require('../gpx2elev/assets/web/chart.js');
+const x=Array.from({length:10000},(_,i)=>i),y=x.map(i=>Math.sin(i));
+assert.deepEqual(visiblePoints({x,y},5000,5010,100).map(p=>p[0]),Array.from({length:13},(_,i)=>4999+i));
+y[5050]=1000;y[5060]=-1000;
+const overview=visiblePoints({x,y},0,9999,10);
+assert(overview.some(p=>p[1]===1000));assert(overview.some(p=>p[1]===-1000));assert(overview.length<100);
+const native={x:[0,0,10,20,20,30],y:[10,20,null,40,400,500],time:[100,160,null,200,300,250],group:[0,0,0,0,1,1]};
+assert.deepEqual(nativeRuns(native),[{x:[0,0],y:[10,20]},{x:[20],y:[40]},{x:[20,30],y:[400,500]}]);
+assert.equal(timeAt(native,0),160);assert.equal(timeAt(native,5),null);assert.equal(timeAt(native,20),300);
+assert.equal(timeAt(native,25),null);assert.equal(timeAt(native,-1),null);
+assert.equal(timeAt({x:[0,10],time:[100,200],group:[0,0]},5),150);
+assert.deepEqual(clamp(-100,10,0,100),[0,100]);
+assert.deepEqual(clamp(95,105,0,100),[90,100]);
+console.log('Chart detail, extrema, stops, gaps, segments and timestamps: OK');

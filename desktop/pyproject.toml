@@ -18,11 +18,12 @@ dependencies = [
     "requests>=2.34",
     "rasterio>=1.4",
     "defusedxml>=0.7.1",
+    "nico579-commons>=0.4.15,<0.5",
 ]
 
 [project.optional-dependencies]
-# L'application de bureau, sa fenêtre Qt comprise : pip install "gpx2elev[gui]".
-gui = ["PySide6-Essentials>=6.11"]
+# Le serveur web et son systray : pip install "gpx2elev[gui]".
+gui = ["nico579-commons[tray]>=0.4.15,<0.5"]
 
 [project.urls]
 Source = "https://github.com/nico579/gpx2elev"
@@ -33,10 +34,11 @@ gpx2elev = "gpx2elev.__main__:main"
 [tool.setuptools]
 # assets/ déclaré comme paquet : setuptools n'inclura bientôt plus un dossier de
 # données absent de cette liste, et __init__.py lit assets/version.txt.
-packages = ["gpx2elev", "gpx2elev.assets"]
+packages = ["gpx2elev", "gpx2elev.assets", "gpx2elev.assets.web"]
 
 [tool.setuptools.dynamic]
 version = {attr = "gpx2elev.__version__"}
 
 [tool.setuptools.package-data]
 "gpx2elev.assets" = ["*"]
+"gpx2elev.assets.web" = ["*"]
