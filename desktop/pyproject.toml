@@ -5,8 +5,26 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "gpx2elev"
 description = "Dénivelé GPX, MNT et protocole spatial 5 m / 20 m / 2 m"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dynamic = ["dependencies", "version"]
+dynamic = ["version"]
+# Le paquet seul est le moteur (core, providers), utilisable sans interface,
+# par exemple par gpx2dash. Les versions figées des bundles restent dans
+# requirements.txt.
+dependencies = [
+    "numpy>=1.26",
+    "Pillow>=11.3",
+    "requests>=2.34",
+    "rasterio>=1.4",
+    "defusedxml>=0.7.1",
+]
+
+[project.optional-dependencies]
+# L'application de bureau, sa fenêtre Qt comprise : pip install "gpx2elev[gui]".
+gui = ["PySide6-Essentials>=6.11"]
+
+[project.urls]
+Source = "https://github.com/nico579/gpx2elev"
 
 [project.gui-scripts]
 gpx2elev = "gpx2elev.__main__:main"
@@ -16,7 +34,6 @@ packages = ["gpx2elev"]
 
 [tool.setuptools.dynamic]
 version = {attr = "gpx2elev.__version__"}
-dependencies = {file = ["requirements.txt"]}
 
 [tool.setuptools.package-data]
 gpx2elev = ["assets/*"]

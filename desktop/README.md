@@ -6,14 +6,14 @@ Application Python de bureau, avec des bundles autonomes incluant Python, Qt et 
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.3.6.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.6, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.3.7.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.3.7, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
 ## Ouvrir l'application
 
-- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.6-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
-- **Linux, x64** : extraire `gpx2elev-0.3.6-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
+- **Windows 10/11, x64** : décompresser `gpx2elev-0.3.7-windows-x64.zip`, puis ouvrir `gpx2elev/gpx2elev.exe`. Conserver tout le dossier avec l'exécutable.
+- **Linux, x64** : extraire `gpx2elev-0.3.7-linux-x64.tar.gz`, puis lancer `./gpx2elev/gpx2elev`. Bundle construit sur Ubuntu 22.04 : Linux de bureau avec glibc 2.35 ou supérieure. Python, Qt et GDAL sont inclus ; les composants système d'affichage X11/Wayland doivent être présents.
 - **macOS** : décompresser l'archive `macos-arm64` pour Apple Silicon (M1 et suivants), ou `macos-x64` pour Intel, puis ouvrir `gpx2elev.app`. Les bundles sont vérifiés sur macOS 14 pour Apple Silicon et macOS 15 pour Intel. Ils ne sont pas notarisés avec un compte développeur Apple : si macOS bloque l'ouverture, utiliser **Réglages Système → Confidentialité et sécurité → Ouvrir quand même**, conformément à l'aide Apple.
 
 Le sélecteur **FR / EN** de l’en-tête change la langue immédiatement et mémorise le choix. Les nombres affichés suivent la langue ; les CSV gardent leur schéma et leurs valeurs.
@@ -57,6 +57,10 @@ L'écran affiche la taille totale du cache et le détail profils/tuiles en Mio. 
 La dernière trace calculée et les profils sont conservés dans les données locales de gpx2elev. Les profils ont une empreinte des coordonnées et de la configuration de source et une somme SHA-256 d'intégrité. Les caches sont limités à 64 Mo de profils et 512 Mo de tuiles. La dernière trace est rouverte depuis le cache, sans réseau. Décocher **Internet autorisé** impose l'utilisation du cache.
 
 Les coordonnées sont envoyées au service IGN pour obtenir ses altitudes. Pour les autres modèles, seules les tuiles sont téléchargées. Aucune télémétrie ; aucune trace personnelle dans les bundles ou GitHub. Le calcul n'utilise pas de clé API.
+
+## Moteur publié sur PyPI
+
+Le moteur de calcul (lecture GPX, modèles de terrain et protocole 5 m / 20 m / 2 m) est publié sur PyPI sous le nom `gpx2elev`. `pip install gpx2elev` installe le moteur seul, sans Qt, pour qu'un autre programme comme [GPX2DASH](https://github.com/nico579/gpx2dash) s'en serve sans en garder une copie. `pip install "gpx2elev[gui]"` ajoute l'interface de bureau ; les bundles restent la façon la plus simple de l'utiliser.
 
 ## Développement et vérification
 

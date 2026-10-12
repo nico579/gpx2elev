@@ -189,6 +189,14 @@ Le contenu conserve désormais sa taille minimale dans une zone défilante. Les 
 
 Validation locale : **51 tests bureau, 49 réussis et 2 ignorés**, sans échec. La régression vérifie les chiffres, les séparations entre libellés, l'absence de chevauchement avec le graphique, l'accès au bas de page, les redimensionnements et la maximisation, en FR et EN. Les **11 tests d'interface** passent également avec `QT_SCALE_FACTOR=1.5`. Le contrôle des exécutables natifs distribué avec chaque bundle vérifie aussi la mise en page à **1339 × 667**.
 
+## Publication du moteur dans la version 0.3.7
+
+Le moteur (`core.py`, `providers.py`) est publié sur PyPI sous le nom `gpx2elev`, pour que GPX2DASH s'en serve au lieu d'en garder une copie. Le paquet tirait jusqu'ici ses dépendances de `requirements.txt`, PySide6 compris : un programme sans interface aurait installé Qt. Le paquet de base déclare désormais les seules dépendances du moteur, avec des versions minimales, et Qt passe dans l'extra `gui`. Les bundles gardent leurs versions figées dans `requirements.txt`. Aucun code n'est modifié.
+
+Le workflow `publish.yml` reprend celui de nico579-commons : publication de confiance (OpenID Connect) sur un tag `vX.Y.Z`, après le contrôle des versions, les tests du moteur installé sans Qt et la vérification que le paquet de base n'exige pas PySide6.
+
+Validation locale : wheel et sdist acceptés par `twine check`. Dans un environnement vierge, le wheel installe le moteur sans PySide6 et les **20 tests du moteur, 19 réussis et 1 ignoré**, passent sur le paquet installé, avec numpy 2.5, Pillow 12.3 et rasterio 1.5.
+
 ## Suite proposée
 
 Les correctifs B1–B8 sont validés. Les travaux suivants restent les optimisations proposées : export CSV asynchrone, traductions précompilées, lecture XML progressive, puis interpolation et mémoire des rasters après mesure des gains. Ils ne sont pas inclus dans cette série de corrections.

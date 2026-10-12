@@ -4,7 +4,7 @@
 
 A Python desktop application with standalone bundles containing Python, Qt and elevation readers. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.6**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.3.7**. GitHub Actions builds all five release assets and verifies them before publication.
 
 The interface adapts to resizing and maximizing. If the screen is too short, a scrollbar provides access to the bottom of the page; card values remain fully visible and controls do not overlap the chart.
 
@@ -55,6 +55,10 @@ The window shows the total cache size and the profile/tile breakdown in MiB. **C
 The last calculated track and complete profiles are stored locally. Profiles are keyed by coordinates and source configuration and protected by SHA-256 integrity checks. Cache limits are 64 MB for profiles and 512 MB for tiles. The last track is restored offline. Uncheck **Allow Internet access** to use cached profiles only.
 
 Coordinates are sent to IGN to obtain elevations. Other sources use downloaded tiles. There is no telemetry or API key, and no personal tracks in GitHub or the bundles.
+
+## Engine on PyPI
+
+The calculation engine (GPX reading, terrain models and the 5 m / 20 m / 2 m protocol) is published on PyPI as `gpx2elev`. `pip install gpx2elev` installs the engine alone, without Qt, so that another program such as [GPX2DASH](https://github.com/nico579/gpx2dash) can use it instead of keeping a copy. `pip install "gpx2elev[gui]"` adds the desktop interface; bundles remain the simplest way to use it.
 
 ## Development and verification
 
