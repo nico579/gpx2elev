@@ -283,6 +283,9 @@ PAIRS.update({
     "Pincez pour zoomer, glissez pour déplacer, touchez pour lire les valeurs.": "Pinch to zoom, drag to pan, tap to read values.",
     "Molette : zoom · glisser : déplacer · clic : lire les valeurs · double-clic : vue complète":
         "Mouse wheel: zoom · drag: pan · click: read values · double-click: full view",
+    "Ouverture du GPX impossible : {0}": "Could not open the GPX: {0}",
+    "Un calcul est en cours : annulez-le ou attendez sa fin avant d'importer un autre GPX.":
+        "A calculation is running: cancel it or wait for it to finish before importing another GPX.",
 })
 
 if __name__ == '__main__':
