@@ -40,13 +40,18 @@ def licenses_and_icons():
         inventory.append({"package": name, "version": distribution.version,
                           "license": distribution.metadata.get("License-Expression") or distribution.metadata.get("License", "Voir fichiers inclus")})
         for file in distribution.files or []:
-            if any(word in str(file).lower() for word in ("license", "copying", "copyright")):
+            # PyObjC's tests include binary modules named *_copying.so and
+            # matching debug symbols. They are not license texts; collecting
+            # them causes unnecessary Mach-O processing and SDK warnings.
+            filename = Path(file).name.lower()
+            if filename.startswith(("license", "copying", "copyright")) and Path(file).suffix.lower() not in {".py", ".pyc", ".pyd", ".so", ".dll"}:
                 source = Path(distribution.locate_file(file))
                 if source.is_file():
                     destination = target / str(file).replace("/", "_").replace("\\", "_")
                     shutil.copy2(source, destination)
     (licenses / "DEPENDENCIES.json").write_text(json.dumps(inventory, indent=2), encoding="utf-8")
     shutil.copy2(ROOT / "THIRD_PARTY.md", licenses / "THIRD_PARTY.md")
+    shutil.copy2(ROOT / "LICENSE", licenses / "gpx2elev-LICENSE.txt")
     shutil.copy2(ROOT / "gpx2elev/assets/OFL.txt", licenses / "NotoSans-OFL.txt")
 
 

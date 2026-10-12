@@ -23,6 +23,35 @@ from gpx2elev.smoke import SYNTHETIC_GPX
 from gpx2elev.web import Application, start_server
 
 
+def wait_for_server(opener, port, process, directory, timeout=90):
+    """Find this process in the advertised port range, including a fallback port.
+
+    A probe socket does not reserve its port after close; the shared server
+    deliberately tries the next port if another socket has taken it meanwhile.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            raise AssertionError(f"Packaged server exited with code {process.returncode}; see server.log")
+        for candidate in range(port, min(port + 10, 65536)):
+            url = f"http://127.0.0.1:{candidate}/"
+            try:
+                with opener.open(url + "api/init", timeout=1) as response:
+                    data = json.load(response)
+                # The bootloader can use a child PID on macOS. The private
+                # temporary data directory identifies this test instance.
+                if (isinstance(data, dict) and data.get("app") == "gpx2elev"
+                        and isinstance(data.get("data_dir"), str)
+                        and Path(data["data_dir"]).resolve() == Path(directory).resolve()):
+                    return url
+            except (OSError, ValueError):
+                pass
+            if time.monotonic() >= deadline:
+                break
+        time.sleep(.1)
+    raise AssertionError("Packaged server failed to start; see server.log")
+
+
 def check(args):
     from playwright.sync_api import sync_playwright, expect
     output = args.output.resolve()
@@ -34,13 +63,16 @@ def check(args):
         track.write_bytes(SYNTHETIC_GPX)
         prepared = prepare(parse_gpx(track))
         ProfileCache(root / "profiles").save(Source.IGN, prepared.coordinates, 100 + .1 * prepared.segments[0].distance)
-        app = server = process = None
+        app = server = process = server_log = None
+        startup = time.monotonic()
         if args.executable:
             with socket.socket() as probe:
                 probe.bind(("127.0.0.1", 0))
                 port = probe.getsockname()[1]
+            server_log = (output / "server.log").open("wb")
             process = subprocess.Popen([str(args.executable.resolve()), "--offline", "--data-dir", str(root),
-                                        "--port", str(port), "--no-browser", "--no-tray"])
+                                        "--port", str(port), "--no-browser", "--no-tray"],
+                                       stdout=server_log, stderr=subprocess.STDOUT)
         else:
             app = Application(root, online=False)
             server, port = start_server(app)
@@ -49,16 +81,14 @@ def check(args):
         def request(route):
             with opener.open(url + route, timeout=3) as response:
                 return json.load(response)
-        deadline = time.monotonic() + 20
-        while True:
-            try:
-                request("api/init")
-                break
-            except OSError:
-                if time.monotonic() > deadline:
-                    raise AssertionError("Packaged server failed to start")
-                time.sleep(.1)
         try:
+            if process:
+                requested_port = port
+                url = wait_for_server(opener, port, process, root)
+                print(json.dumps({"requested_port": requested_port, "server_url": url,
+                                  "startup_seconds": round(time.monotonic() - startup, 2)}), flush=True)
+            else:
+                request("api/init")
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(channel=args.browser_channel, headless=True)
                 context = browser.new_context(viewport={"width": 1339, "height": 667}, locale="fr-FR", accept_downloads=True)
@@ -240,6 +270,8 @@ def check(args):
                 except (OSError, subprocess.TimeoutExpired):
                     process.kill()
                     process.wait()
+            if server_log:
+                server_log.close()
     print(json.dumps(report, ensure_ascii=False))
 
 

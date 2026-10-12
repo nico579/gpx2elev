@@ -24,6 +24,7 @@ from gpx2elev.runtime import GUI, data_directory
 from gpx2elev.service import calculate
 from gpx2elev.smoke import SYNTHETIC_GPX, run_smoke
 from gpx2elev.web import Application, start_server, tray_actions
+from tools.check_web_ui import wait_for_server
 
 
 def await_idle(app):
@@ -195,6 +196,24 @@ class WebTests(unittest.TestCase):
 
     def test_js_keeps_detail_extrema_segment_gaps_and_time_boundaries(self):
         subprocess.run(["node", str(Path(__file__).with_name("test_chart.js"))], check=True)
+
+    def test_packaged_probe_finds_fallback_port_and_ignores_another_process(self):
+        calls = []
+
+        def open_url(url, timeout):
+            calls.append(url)
+            if ":40000/" in url:
+                raise urllib.error.URLError("port occupied")
+            directory = self.root if ":40002/" in url else self.root / "other"
+            return io.BytesIO(json.dumps({"app": "gpx2elev", "pid": 456, "data_dir": str(directory)}).encode())
+
+        process = types.SimpleNamespace(pid=123, poll=lambda: None)
+        opener = types.SimpleNamespace(open=open_url)
+        self.assertEqual(wait_for_server(opener, 40000, process, self.root), "http://127.0.0.1:40002/")
+        self.assertEqual(len(calls), 3)
+        process = types.SimpleNamespace(returncode=2, poll=lambda: 2)
+        with self.assertRaisesRegex(AssertionError, "exited with code 2"):
+            wait_for_server(opener, 40000, process, self.root)
 
     def test_full_packaged_smoke_protocol(self):
         self.assertEqual(run_smoke(self.root / "report.json"), 0)
