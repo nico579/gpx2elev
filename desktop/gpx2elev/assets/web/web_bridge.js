@@ -12,8 +12,5 @@ window.api={
   upload:cfg=>request('upload',cfg),recalculate:cfg=>request('recalculate',cfg),
   cancel:()=>request('cancel',{}),clearCache:()=>request('clear-cache',{confirm:true}),quit:()=>request('quit',{}),
   export:kind=>request('export?kind='+encodeURIComponent(kind)),
-  select:(x,y,left,right)=>request('select?'+new URLSearchParams({x,y,left,right})),
-  updateState:()=>request('update-state'),updateCheck:()=>request('update-check',{}),
-  updateDownload:()=>request('update-download',{}),updateCancel:()=>request('update-cancel',{}),
-  updateInstall:()=>request('update-install',{confirm:true}),updateFolder:()=>request('update-folder',{})
+  select:(x,y,left,right)=>request('select?'+new URLSearchParams({x,y,left,right}))
 };

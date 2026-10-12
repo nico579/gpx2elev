@@ -9,7 +9,10 @@ import shutil
 import subprocess
 import sys
 import tarfile
+import tempfile
 import zipfile
+
+from nico579_commons import maj_archive, maj_install
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -82,25 +85,44 @@ def main():
     run([str(binary), "--self-test-report", str(report)], env=env, timeout=90)
     if json.loads(report.read_text(encoding="utf-8"))["status"] != "OK":
         raise RuntimeError("Le bundle a échoué à sa vérification.")
+    # Two archives of the same bundle. The shared installer (0.5 and later) looks for
+    # the common name, gpx2elev-windows-x86_64.zip holding a folder of the same name.
+    # Versions 0.3 and 0.4 look for gpx2elev-<version>-<system>-<arch>, holding
+    # gpx2elev or gpx2elev.app: it is how they reach 0.5.
+    name, _, folder = maj_install.archive_standard("gpx2elev", racine_macos="gpx2elev.app")
+    legacy = f"gpx2elev-{__version__}-{system}-{arch}." + ("tar.gz" if system == "linux" else "zip")
+    archives = (release / name, release / legacy)
     if system == "macos":
-        archive = release / f"gpx2elev-{__version__}-{system}-{arch}.zip"
-        # ditto preserves .app framework symlinks, unlike Python's zipfile.
-        run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", "dist/gpx2elev.app", str(archive)])
-    elif system == "windows":
-        archive = release / f"gpx2elev-{__version__}-{system}-{arch}.zip"
-        with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as output:
-            for path in sorted((ROOT / "dist/gpx2elev").rglob("*")):
-                if path.is_file():
-                    output.write(path, path.relative_to(ROOT / "dist").as_posix())
+        bundle = ROOT / "dist/gpx2elev.app"
+        # ditto preserves .app framework symlinks, unlike Python's zipfile. The shared
+        # installer refuses the __MACOSX folder of --sequesterRsrc, which 0.3 and 0.4 skip.
+        run(["ditto", "-c", "-k", "--keepParent", "dist/gpx2elev.app", str(archives[0])])
+        run(["ditto", "-c", "-k", "--sequesterRsrc", "--keepParent", "dist/gpx2elev.app", str(archives[1])])
     else:
-        launcher = ROOT / "dist/gpx2elev/gpx2elev.desktop"
-        launcher.write_text("[Desktop Entry]\nType=Application\nName=gpx2elev\nExec=gpx2elev %f\nTerminal=false\nCategories=Utility;Science;\nMimeType=application/gpx+xml;\n", encoding="utf-8")
-        archive = release / f"gpx2elev-{__version__}-{system}-{arch}.tar.gz"
-        with tarfile.open(archive, "w:gz") as output:
-            output.add(ROOT / "dist/gpx2elev", arcname="gpx2elev")
-    checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
-    (release / f"SHA256SUMS-{system}-{arch}.txt").write_text(f"{checksum}  {archive.name}\n", encoding="utf-8", newline="\n")
-    print(json.dumps({"archive": archive.name, "bytes": archive.stat().st_size, "sha256": checksum, "verification": "OK"}))
+        bundle = ROOT / "dist/gpx2elev"
+        if system == "linux":
+            (bundle / "gpx2elev.desktop").write_text("[Desktop Entry]\nType=Application\nName=gpx2elev\nExec=gpx2elev %f\nTerminal=false\nCategories=Utility;Science;\nMimeType=application/gpx+xml;\n", encoding="utf-8")
+        for archive, root in zip(archives, (folder, "gpx2elev")):
+            if system == "windows":
+                with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as output:
+                    for path in sorted(bundle.rglob("*")):
+                        if path.is_file():
+                            output.write(path, f"{root}/{path.relative_to(bundle).as_posix()}")
+            else:
+                with tarfile.open(archive, "w:gz") as output:
+                    output.add(bundle, arcname=root)
+    # What the shared installer does with a downloaded archive before replacing
+    # anything: extract it with its own checks, then run the extracted self-test.
+    with tempfile.TemporaryDirectory() as directory:
+        extracted = maj_archive.extraire(archives[0], Path(directory) / "archive", racine=folder)
+        run([str(extracted / binary.relative_to(bundle)), "--self-test-version", __version__], timeout=60)
+    sums, summary = [], []
+    for archive in archives:
+        checksum = hashlib.sha256(archive.read_bytes()).hexdigest()
+        sums.append(f"{checksum}  {archive.name}\n")
+        summary.append({"archive": archive.name, "bytes": archive.stat().st_size, "sha256": checksum})
+    (release / f"SHA256SUMS-{system}-{arch}.txt").write_text("".join(sums), encoding="utf-8", newline="\n")
+    print(json.dumps({"archives": summary, "verification": "OK"}))
 
 
 if __name__ == "__main__":

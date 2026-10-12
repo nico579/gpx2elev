@@ -23,7 +23,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # Le serveur web et son systray : pip install "gpx2elev[gui]".
-gui = ["nico579-commons[tray]>=0.4.15,<0.5"]
+gui = ["nico579-commons[tray]>=0.4.16,<0.5"]
 
 [project.urls]
 Source = "https://github.com/nico579/gpx2elev"

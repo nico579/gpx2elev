@@ -50,8 +50,8 @@ def run_smoke(report_path, fixtures=None):
 
         try:
             assert not serveweb.fichiers_manquants(), serveweb.fichiers_manquants()
-            for asset in ("/", "/app.js", "/chart.js", "/style.css", "/web_bridge.js",
-                          "/nico579-langue.js", "/NotoSans.ttf", "/favicon.ico"):
+            for asset in ("/", "/app.js", "/chart.js", "/style.css", "/web_bridge.js", "/nico579-langue.js",
+                          "/nico579-maj.js", "/nico579-reglages.js", "/NotoSans.ttf", "/favicon.ico"):
                 assert request(asset), asset
             assert request("/api/init")["app"] == "gpx2elev"
             assert request("/api/upload", {"name": "test.gpx", "content": base64.b64encode(SYNTHETIC_GPX).decode(),
@@ -78,7 +78,8 @@ def run_smoke(report_path, fixtures=None):
             for code in ("en", "fr"):
                 assert request("/api/langue", {"code": code})["enregistre"]
                 assert request("/api/langue")["code"] == code
-            assert request("/api/update-state")["phase"] == "idle"
+            update = request("/api/maj")
+            assert update["version_locale"] == __version__ and update["etat"]["etat"] == "inactif", update
             assert request("/api/clear-cache", {})["error"]
             assert request("/api/clear-cache", {"confirm": True})["ok"]
             deadline = time.monotonic() + 10

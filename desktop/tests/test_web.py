@@ -16,6 +16,7 @@ import urllib.request
 
 from nico579_commons import serveweb, tray
 
+from gpx2elev import __version__
 from gpx2elev.core import parse_gpx, prepare
 from gpx2elev.i18n import CATALOG, number, translate
 from gpx2elev.providers import Cancelled, ProfileCache, Source
@@ -129,7 +130,8 @@ class WebTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.request("/api/clear-cache", {"confirm": True}, {"Sec-Fetch-Site": "cross-site"})
         self.assertEqual(error.exception.code, 403)
-        for route in ("/", "/chart.js", "/style.css", "/app.js", "/web_bridge.js", "/nico579-langue.js", "/favicon.ico", "/NotoSans.ttf"):
+        for route in ("/", "/chart.js", "/style.css", "/app.js", "/web_bridge.js", "/nico579-langue.js",
+                      "/nico579-maj.js", "/nico579-reglages.js", "/favicon.ico", "/NotoSans.ttf"):
             self.assertTrue(self.request(route))
         self.assertTrue(serveweb.instance_existante("gpx2elev", "127.0.0.1", self.port))
         self.assertFalse(serveweb.instance_existante("gpxsolar", "127.0.0.1", self.port))
@@ -157,6 +159,12 @@ class WebTests(unittest.TestCase):
         self.assertEqual(self.app.result.filename, "second.gpx")
         self.assertEqual(self.app.snapshot()["phase"], "done")
 
+    def test_updates_use_the_common_routes(self):
+        update = self.request("/api/maj")
+        self.assertEqual((update["version_locale"], update["possible"], update["raison"]), (__version__, False, "source_mode"))
+        self.assertEqual(update["etat"]["etat"], "inactif")
+        self.assertIsNone(update["version"])
+
     def test_language_uses_the_common_routes_and_preserves_other_settings(self):
         (self.root / "settings.json").write_text('{"other": 42, "language": "fr"}')
         self.assertEqual(self.request("/api/langue")["code"], "fr")
@@ -176,17 +184,24 @@ class WebTests(unittest.TestCase):
         self.assertEqual([entry[0] for entry in entries], [words[k] for k in ("ouvrir", "redemarrer", "arreter", "raccourci")])
         with patch("webbrowser.open") as opened:
             actions.ouvrir()
+            # From sources nothing can be replaced: the release page opens instead.
             actions.mettre_a_jour()
             self.assertEqual(opened.call_args_list[0].args[0], "http://127.0.0.1:8769/")
-            self.assertEqual(opened.call_args_list[1].args[0], "http://127.0.0.1:8769/?updates=1")
+            self.assertEqual(opened.call_args_list[1].args[0], self.app.version_checker.page_des_releases)
         with patch("nico579_commons.raccourci.creer") as shortcut:
             actions.creer_raccourci()
             self.assertEqual(shortcut.call_args.args[:2], ("gpx2elev", ["python", "launcher.py"]))
-        with patch.object(self.app.version_checker, "disponible", return_value={"version": "9.0.0"}):
-            self.app.updates.advertised = self.app.version_checker.disponible
+        with patch.object(self.app.version_checker, "disponible", return_value={"version": "9.0.0", "page": "https://x/r"}):
             self.assertEqual(actions.version_disponible(), "9.0.0")
             entries = tray.entrees(actions, fake, lambda action: action())
             self.assertEqual(entries[1][0], words["maj"].format(version="9.0.0"))
+            # The published bundle installs by itself; the icon stays until it is ready.
+            with patch.object(self.app.installer, "possible", return_value=(True, "")), \
+                    patch.object(self.app.installer, "demarrer") as started, patch("webbrowser.open") as opened:
+                actions.mettre_a_jour()
+            started.assert_called_once_with()
+            opened.assert_not_called()
+        self.assertFalse(actions.mettre_a_jour_referme)
         actions.redemarrer()
         self.assertTrue(self.app.restart_requested)
         self.assertTrue(self.app.stop_event.is_set())

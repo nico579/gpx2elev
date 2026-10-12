@@ -2,14 +2,13 @@
 <html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light">
 <title>gpx2elev</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/style.css">
-<script defer src="/web_bridge.js"></script><script defer src="/chart.js"></script><script defer src="/app.js"></script><script defer src="/nico579-langue.js"></script>
+<script defer src="/web_bridge.js"></script><script defer src="/chart.js"></script><script defer src="/app.js"></script><script defer src="/nico579-maj.js"></script><script defer src="/nico579-reglages.js"></script><script defer src="/nico579-langue.js"></script>
 </head><body><main>
 <header>
 <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15"/><path d="M11 45 24 22 32 33 42 17 54 45"/></svg><div><h1>gpx2elev <small id="version"></small></h1><p data-i18n>Le dénivelé de votre parcours, à partir du terrain</p></div></div>
-<nav aria-label="Application"><button id="about" data-i18n>Méthode et sources</button><span class="languages" data-nico579-langue data-classe="language"></span></nav>
+<nav aria-label="Application"><button id="about" data-i18n>Méthode et sources</button><span id="nico579-reglages" data-classe="settings"></span><span class="languages" data-nico579-langue data-classe="language"></span></nav>
 </header>
 <div id="notice" role="alert" hidden><span></span><button aria-label="Fermer">×</button></div>
-<div id="new-version" class="update-banner" hidden><span></span><button id="show-new-version" data-i18n>Mises à jour</button></div>
 <section class="workspace" aria-label="GPX">
 <div class="controls">
 <input id="file" type="file" accept=".gpx,application/gpx+xml" hidden>
@@ -40,7 +39,7 @@
 <div class="exports"><button id="export-summary" disabled data-i18n>Exporter les résultats CSV</button><button id="export-profile" disabled data-i18n>Exporter le profil CSV</button><button id="cancel" class="danger" hidden data-i18n>Annuler</button></div>
 <div class="status-row"><span id="status" aria-live="polite" data-i18n>Prêt</span><progress id="progress" hidden></progress></div>
 </section>
-<footer><div><strong data-i18n>Cache des altitudes</strong><p id="cache"></p></div><div class="footer-buttons"><button id="updates" data-i18n>Mises à jour</button><button id="clear-cache" disabled data-i18n>Vider le cache</button><button id="quit" data-i18n>Arrêter</button></div></footer>
+<footer><div><strong data-i18n>Cache des altitudes</strong><p id="cache"></p></div><div class="footer-buttons"><button id="clear-cache" disabled data-i18n>Vider le cache</button><button id="quit" data-i18n>Arrêter</button></div></footer>
 <p class="local-note" data-i18n>Vos traces et le cache restent sur cet ordinateur. Fermer cet onglet laisse l'application active dans la zone de notification.</p>
 </main>
 <dialog id="about-dialog"><form method="dialog">
@@ -51,9 +50,6 @@
 <p>IGN : Licence Ouverte · <a href="https://mapterhorn.com/attribution/" target="_blank" rel="noreferrer">Mapterhorn</a> · <a href="https://research-information.bris.ac.uk/en/datasets/fabdem-v1-2/" target="_blank" rel="noreferrer">FABDEM 1.2 : CC BY-NC-SA 4.0</a> · <a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noreferrer">Copernicus DEM</a> · SRTM : NASA/USGS.</p>
 <p data-i18n>Interface web locale et composants partagés nico579-commons. Les licences des dépendances sont incluses dans le bundle.</p>
 <button class="primary" data-i18n>Fermer</button></form></dialog>
-<dialog id="update-dialog"><div class="dialog-heading"><h2 data-i18n>Mises à jour</h2><span class="languages" data-nico579-langue data-classe="language"></span><button id="update-close" aria-label="Fermer">×</button></div>
-<p id="installed-version"></p><p id="update-status" role="status"></p><pre id="update-notes" hidden></pre><progress id="update-progress" hidden></progress>
-<div class="dialog-actions"><button id="update-check" data-i18n>Vérifier à nouveau</button><button id="update-cancel" hidden data-i18n>Annuler</button><button id="update-action" class="primary" hidden></button></div></dialog>
 <dialog id="confirm-dialog"><h2 id="confirm-title"></h2><p id="confirm-text"></p><form method="dialog" class="dialog-actions"><button value="cancel" data-i18n>Annuler</button><button value="confirm" class="primary" id="confirm-action"></button></form></dialog>
 <noscript>Activez JavaScript pour utiliser gpx2elev. / Enable JavaScript to use gpx2elev.</noscript>
 </body></html>

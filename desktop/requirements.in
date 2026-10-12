@@ -3,7 +3,7 @@
 # paquet, pour Windows, Linux et macOS à la fois) est généré dans
 # requirements.txt par uv, voir l'en-tête de ce fichier. Même schéma que
 # gpxsolar, lidar2map, blink2video et watch2notif.
-nico579-commons[tray]==0.4.15
+nico579-commons[tray]==0.4.16
 numpy==1.26.4
 Pillow==11.3.0
 requests==2.34.2

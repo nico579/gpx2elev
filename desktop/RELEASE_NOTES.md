@@ -1,11 +1,9 @@
-# gpx2elev 0.4.1 : cache, ouverture des GPX et licence des bundles / Cache, GPX opening and bundle license
+# gpx2elev 0.5.0 : mise à jour automatique commune / Shared automatic updates
 
-- Un profil déjà en cache sert avant tout appel réseau, sur ordinateur comme sur Android : une trace déjà calculée ne repart plus sur Internet.
-- Sur ordinateur, le cache ne se vide jamais seul : il n'est effacé que sur demande, après confirmation. Android garde sa limite de 512 Mo.
-- Un GPX illisible transmis par le système affiche son erreur au lieu d'arrêter l'application ; un dépôt pendant un calcul dit quoi faire.
-- Les bundles contiennent la licence GPL-3.0-or-later de gpx2elev, en plus de celles des dépendances.
-- Un dénivelé nul s'affiche « 0 m », et l'axe du graphique devient « Distance (km) · heure locale ».
-- Chaque push et chaque pull request testent Android et les quatre versions ordinateur ; dépendances figées avec empreintes SHA-256, actions GitHub épinglées par SHA et suivies par Dependabot.
-- Protocole de calcul inchangé.
+- La mise à jour des versions ordinateur est celle de nico579-commons, comme dans gpxsolar, lidar2map et watch2notif : un bandeau annonce la nouvelle version, **Installer** la télécharge, la vérifie et la met en place, et la page ouverte se recharge d'elle-même sur la nouvelle version. À la moindre défaillance, l'ancienne version est remise en place.
+- Le bouton **⚙ Réglages…**, à côté de FR / EN, affiche la version installée et vérifie les mises à jour à la demande ; l'entrée **Mettre à jour vers…** de l'icône installe directement.
+- Nouveaux noms d'archives : `gpx2elev-windows-x86_64.zip`, `gpx2elev-linux-x86_64.tar.gz`, `gpx2elev-macos-arm64.zip` et `gpx2elev-macos-x86_64.zip`. Les mêmes bundles restent publiés sous leurs anciens noms, pour que les versions 0.3 et 0.4 passent à la 0.5.0 par leur bouton **Mises à jour**.
+- Le dossier `.gpx2elev-update-…` que laissait chaque mise à jour des versions 0.3 et 0.4, avec toute l'ancienne version, est supprimé au démarrage.
+- Application Android et protocole de calcul inchangés.
 
-A cached profile is now used before any network call, on desktop and Android, so a track already calculated no longer goes back to the Internet. The desktop cache is never emptied automatically, only on confirmed request; Android keeps its 512 MB limit. An unreadable GPX opened by the system shows an error instead of stopping the application, and dropping a file during a calculation explains what to do. Bundles now include the gpx2elev GPL-3.0-or-later license. A zero elevation change reads "0 m" and the chart axis reads "Distance (km) · local time". Every push and pull request tests Android and the four desktop builds; dependencies are locked with SHA-256 hashes and GitHub actions are pinned by SHA. The calculation protocol is unchanged.
+Desktop updates now use the shared nico579-commons installer, as in gpxsolar, lidar2map and watch2notif: a banner announces a new version, **Install** downloads, verifies and swaps it, and the open page reloads itself on the new version; on any failure the previous version is put back. The **⚙ Settings…** button next to FR / EN shows the installed version and checks for updates on demand; the icon's **Update to…** entry installs directly. Archives take the common names (`gpx2elev-windows-x86_64.zip`, `gpx2elev-linux-x86_64.tar.gz`, `gpx2elev-macos-arm64.zip`, `gpx2elev-macos-x86_64.zip`); the same bundles are still published under their former names so that versions 0.3 and 0.4 can update to 0.5.0. The folder those versions left next to the application after each update, holding the whole previous version, is removed at startup. Android and the calculation protocol are unchanged.

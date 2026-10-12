@@ -140,6 +140,9 @@ jobs:
           path: release-assets
           pattern: "{android,windows-x64,linux-x64,macos-x64,macos-arm64}"
           merge-multiple: true
+      # Nine archives: the APK, and each desktop bundle twice. Under its common
+      # name for the shared installer (0.5 and later), and under its former name
+      # for versions 0.3 and 0.4, whose own installer only knows that one.
       - name: Publish verified APK and bundles
         env:
           GH_TOKEN: ${{ github.token }}
@@ -147,7 +150,7 @@ jobs:
         run: |
           cat release-assets/SHA256SUMS-*.txt | tr -d '\r' > release-assets/SHA256SUMS.txt
           cd release-assets
-          test "$(wc -l < SHA256SUMS.txt)" -eq 5
+          test "$(wc -l < SHA256SUMS.txt)" -eq 9
           sha256sum -c SHA256SUMS.txt
           cd ..
           if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then

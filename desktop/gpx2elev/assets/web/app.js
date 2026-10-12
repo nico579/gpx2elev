@@ -1,6 +1,6 @@
 'use strict';
 const $=id=>document.getElementById(id);
-let language='fr',catalog={},patterns=[],currentState=null,currentResult=null,revision=-1,sending=false,optionsDirty=false,updateState=null;
+let language='fr',catalog={},patterns=[],currentState=null,currentResult=null,revision=-1,sending=false,optionsDirty=false;
 function t(text){
   if(language==='fr')return text;
   if(Object.prototype.hasOwnProperty.call(catalog,text))return catalog[text];
@@ -28,7 +28,7 @@ function applyLanguage(){
   $('dropzone').setAttribute('aria-label',t('Choisir ou déposer un GPX'));
   $('chart').setAttribute('aria-label',t("Profils d'altitude : terrain lissé et mesures GPX"));
   document.querySelectorAll('[aria-label="Fermer"],[aria-label="Close"]').forEach(el=>el.setAttribute('aria-label',t('Fermer')));
-  if(currentState)render(currentState);renderUpdate();plot.draw();
+  if(currentState)render(currentState);plot.draw();
 }
 document.addEventListener('nico579-langue',event=>{language=event.detail.code;applyLanguage();});
 function updatePlotControls(){
@@ -137,39 +137,13 @@ $('quit').onclick=async()=>{
   if(!await confirmAction("Arrêter l'application ?",'Le calcul en cours sera annulé. Vous pourrez relancer gpx2elev depuis son raccourci.','Arrêter'))return;
   try{await window.api.quit();$('status').textContent=t('Application arrêtée. Vous pouvez fermer cet onglet.');stopped=true;}catch(error){notify(error);}
 };
-function renderUpdate(){
-  $('installed-version').textContent=t('Version installée : {0}').replace('{0}',$('version').textContent);
-  if(!updateState)return;
-  const s=updateState;$('update-status').textContent=t(s.message);
-  if(s.release&&s.phase==='available')$('update-status').textContent=t('Version {0} disponible · {1} Mio').replace('{0}',s.release.version).replace('{1}',number(s.release.size/1048576,1));
-  $('update-notes').textContent=s.release?.notes||'';$('update-notes').hidden=!s.release?.notes;
-  $('update-check').disabled=s.busy||s.phase==='installing';
-  $('update-action').hidden=!(s.release&&!s.busy&&(s.phase==='available'||s.phase==='ready'));
-  $('update-action').textContent=t(s.prepared==='install'?'Installer et redémarrer':s.prepared==='folder'?'Ouvrir le dossier':s.can_install?'Télécharger et installer':'Télécharger');
-  $('update-cancel').hidden=!s.busy;$('update-progress').hidden=!s.busy;
-  if(s.total){$('update-progress').max=s.total;$('update-progress').value=s.completed;}else $('update-progress').removeAttribute('value');
-  const version=s.advertised_version||s.release?.version;$('new-version').hidden=!version;
-  if(version)$('new-version').querySelector('span').textContent=t('Version {0} disponible').replace('{0}',version);
-}
-async function checkUpdate(){try{await window.api.updateCheck();updateState=await window.api.updateState();renderUpdate();}catch(error){notify(error);}}
-async function openUpdates(){if(!$('update-dialog').open)$('update-dialog').showModal();await checkUpdate();}
-$('updates').onclick=openUpdates;$('show-new-version').onclick=openUpdates;$('update-close').onclick=()=>$('update-dialog').close();
-$('update-check').onclick=checkUpdate;$('update-cancel').onclick=async()=>{try{await window.api.updateCancel();}catch(error){notify(error);}};
-$('update-action').onclick=async()=>{
-  try{
-    if(updateState.prepared==='folder')await window.api.updateFolder();
-    else if(updateState.prepared==='install'){
-      if(await confirmAction('Installer et redémarrer',"Mise à jour vérifiée. L'application va se fermer puis redémarrer.",'Installer et redémarrer'))await window.api.updateInstall();
-    }else await window.api.updateDownload();
-    updateState=await window.api.updateState();renderUpdate();
-  }catch(error){notify(error);}
-};
+// Updates: the common banner (/nico579-maj.js) and settings panel (/nico579-reglages.js).
 let stopped=false,failures=0;
 async function poll(){
   if(stopped)return;
-  try{await refresh();updateState=await window.api.updateState();renderUpdate();failures=0;}
+  try{await refresh();failures=0;}
   catch(error){failures++;if(failures>2)$('status').textContent=t('Le serveur local est indisponible. Relancez gpx2elev.');}
-  setTimeout(poll,currentState?.busy||updateState?.busy?350:1200);
+  setTimeout(poll,currentState?.busy?350:1200);
 }
 (async()=>{
   try{
@@ -181,6 +155,6 @@ async function poll(){
     });
     init.models.forEach(model=>{$('model').add(new Option(model.label,model.id));});
     language=window.nico579Langue?.code()||init.language||(navigator.language.startsWith('fr')?'fr':'en');
-    applyLanguage();await refresh();poll();if(new URLSearchParams(location.search).get('updates'))openUpdates();
+    applyLanguage();await refresh();poll();
   }catch(error){notify(error);$('status').textContent=t('Le serveur local est indisponible. Relancez gpx2elev.');}
 })();
