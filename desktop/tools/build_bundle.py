@@ -13,7 +13,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from gpx2elev import __version__
+from gpx2elev import __version__  # noqa: E402
 
 
 def run(args, **kwargs):
