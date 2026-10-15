@@ -46,7 +46,12 @@ class Cancelled(Exception):
 
 
 class MissingCoverage(Exception):
-    pass
+    """Aucun profil complet. `transient` nomme les modèles écartés par une panne
+    passagère : un autre essai pourrait aboutir, pas une absence de couverture."""
+
+    def __init__(self, message="", transient=()):
+        super().__init__(message)
+        self.transient = tuple(transient)
 
 
 @dataclass
@@ -56,6 +61,17 @@ class Series:
     from_cache: bool
     fallbacks: list[tuple[Source, str]]
     cache_warning: str | None = None
+    # Modèles mieux classés écartés par une panne passagère, pas par leur couverture.
+    transient: tuple[Source, ...] = ()
+
+
+def transient_failure(exc):
+    """Panne passagère d'un service (réseau, délai, HTTP 429 ou 5xx), qu'un autre
+    essai peut lever ; une absence de couverture ou une réponse invalide ne l'est pas."""
+    if isinstance(exc, requests.HTTPError):
+        status = exc.response.status_code if exc.response is not None else None
+        return status is not None and (status == 429 or status >= 500)
+    return isinstance(exc, requests.RequestException)
 
 
 _ACTIVE_WRITES = set()
@@ -555,7 +571,8 @@ class Repository:
     def obtain(self, coordinates, online=True, progress=lambda *args: None, source=None):
         candidates = RANKING if source is None else (source,)
         # Un profil déjà obtenu d'un modèle est définitif : le cache de tous les
-        # modèles passe avant le réseau. Choisir un modèle précis le force.
+        # modèles passe avant le réseau. Choisir un modèle précis le force : c'est
+        # ainsi qu'un appelant retente plus tard un modèle que `transient` désigne.
         for candidate in candidates:
             self.http.check()
             progress(f"Recherche des altitudes · {candidate.label}", 0, len(coordinates))
@@ -564,7 +581,7 @@ class Repository:
                 return Series(candidate, cached, True, [])
         if not online:
             raise MissingCoverage("Cette trace n'est pas encore disponible hors connexion. Activez Internet pour son premier calcul.")
-        failures = []
+        failures, passing = [], []
         for candidate in candidates:
             self.http.check()
             progress(f"Recherche des altitudes · {candidate.label}", 0, len(coordinates))
@@ -577,13 +594,16 @@ class Repository:
                 raise
             except Exception as exc:
                 failures.append((candidate, str(exc)[:240]))
+                if transient_failure(exc):
+                    passing.append(candidate)
                 continue
             try:
                 self.cache.save(candidate, coordinates, values)
             except OSError as exc:
-                return Series(candidate, values, False, failures, str(exc)[:240])
-            return Series(candidate, values, False, failures)
-        raise MissingCoverage("Aucun modèle n'a fourni un profil complet.\n" + "\n".join(f"{s.label} : {reason}" for s, reason in failures))
+                return Series(candidate, values, False, failures, str(exc)[:240], tuple(passing))
+            return Series(candidate, values, False, failures, transient=tuple(passing))
+        raise MissingCoverage("Aucun modèle n'a fourni un profil complet.\n" + "\n".join(f"{s.label} : {reason}" for s, reason in failures),
+                              transient=passing)
 
     def close(self):
         # Le cache ne se vide jamais seul : seul un effacement demandé le vide.

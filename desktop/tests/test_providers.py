@@ -12,9 +12,10 @@ import numpy as np
 from PIL import Image
 import rasterio
 from rasterio.transform import from_origin
+import requests
 
 from gpx2elev.providers import (Cancelled, MissingCoverage, ProfileCache, PublicModels,
-    RemoteZip, Repository, Source, bilinear)
+    RemoteZip, Repository, Source, bilinear, transient_failure)
 
 RESOURCES = Path(__file__).resolve().parents[2] / "app/src/test/resources"
 
@@ -236,6 +237,50 @@ class ProviderTests(unittest.TestCase):
             with patch("gpx2elev.providers.atomic_write", side_effect=OSError(errno.ENOSPC, "disk full")), \
                     self.assertRaises(OSError):
                 PublicModels(directory, TileHttp(tile)).raster_path(Source.COPERNICUS, (45, 5))
+
+    def test_transient_failure_classification(self):
+        def http_error(status):
+            response = requests.Response()
+            response.status_code = status
+            return requests.HTTPError(f"HTTP {status}", response=response)
+        for exc, expected in ((http_error(429), True), (http_error(503), True), (requests.ConnectionError(), True),
+                              (requests.Timeout(), True), (http_error(404), False), (http_error(400), False),
+                              (MissingCoverage("Hors couverture."), False), (ValueError("Réponse invalide."), False)):
+            with self.subTest(exc=repr(exc)):
+                self.assertEqual(transient_failure(exc), expected)
+
+    def test_transient_failures_are_named_apart_from_coverage(self):
+        busy = requests.Response()
+        busy.status_code = 503
+
+        class Flaky(Reader):
+            # IGN en panne, Mapterhorn hors de portée du réseau, FABDEM disponible.
+            def __init__(self, fabdem=True):
+                super().__init__()
+                self.fabdem = fabdem
+
+            def read(self, source, points, progress):
+                self.calls.append(source)
+                if source == Source.IGN:
+                    raise requests.HTTPError("503 Server Error", response=busy)
+                if source == Source.MAPTERHORN:
+                    raise requests.ConnectionError("Réseau coupé.")
+                if source == Source.FABDEM and self.fabdem:
+                    return np.arange(len(points)) + 100.
+                raise MissingCoverage("Hors couverture.")
+
+        points = np.array([[45., 5.], [45.001, 5.]])
+        with tempfile.TemporaryDirectory() as directory:
+            result = Repository(directory, reader=Flaky()).obtain(points)
+            self.assertEqual(result.source, Source.FABDEM)
+            self.assertEqual(result.transient, (Source.IGN, Source.MAPTERHORN))
+            # Depuis le cache, aucun modèle n'a été interrogé : rien de passager.
+            self.assertEqual(Repository(directory, reader=Flaky()).obtain(points).transient, ())
+        with tempfile.TemporaryDirectory() as directory:
+            self.assertEqual(Repository(directory, reader=Reader()).obtain(points).transient, ())
+            with self.assertRaises(MissingCoverage) as failure:
+                Repository(directory + "/aucun", reader=Flaky(fabdem=False)).obtain(points)
+            self.assertEqual(failure.exception.transient, (Source.IGN, Source.MAPTERHORN))
 
 
 if __name__ == "__main__":
