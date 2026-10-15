@@ -6,7 +6,7 @@ Application Python avec une interface web locale et des bundles autonomes inclua
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.5.1.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.5.1, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.5.2.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.5.2, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
