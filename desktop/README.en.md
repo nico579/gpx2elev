@@ -4,7 +4,7 @@
 
 A Python application with a local web interface and standalone bundles containing Python and elevation readers. Server, language, version checker, automatic updates and system tray: [nico579-commons](https://github.com/nico579/nico579-commons), like gpxsolar, blink2video, watch2notif and lidar2map. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.5.0**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.5.1**. GitHub Actions builds all five release assets and verifies them before publication.
 
 The interface adapts to resizing and maximizing. If the screen is too short, a scrollbar provides access to the bottom of the page; card values remain fully visible and controls do not overlap the chart.
 

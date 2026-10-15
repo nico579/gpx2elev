@@ -1,5 +1,6 @@
 package com.nico.gpx2elev.data
 
+import com.nico.gpx2elev.BuildConfig
 import java.io.*
 import java.net.HttpURLConnection
 import java.net.ProtocolException
@@ -38,7 +39,7 @@ class HttpTransport(private val openConnection: (URL) -> HttpURLConnection = { i
                 checkActive()
                 connection.connectTimeout = 12_000
                 connection.readTimeout = 60_000
-                connection.setRequestProperty("User-Agent", "gpx2elev/0.1 (personal elevation calculator)")
+                connection.setRequestProperty("User-Agent", "gpx2elev/${BuildConfig.VERSION_NAME} (+https://github.com/nico579/gpx2elev)")
                 connection.setRequestProperty("Accept-Encoding", "identity")
                 range?.let { connection.setRequestProperty("Range", it) }
                 if (body != null) {

@@ -1,5 +1,6 @@
 """Public DEM readers and verified, bounded, local caches."""
 from collections import OrderedDict
+import contextlib
 from dataclasses import dataclass
 from enum import Enum
 import hashlib
@@ -17,6 +18,8 @@ import numpy as np
 from PIL import Image
 import rasterio
 import requests
+
+from . import __version__
 
 
 class Source(Enum):
@@ -153,7 +156,8 @@ class Http:
     def __init__(self, cancel=None):
         self.cancel = cancel if cancel is not None else threading.Event()
         self.session = requests.Session()
-        self.session.headers.update({"User-Agent": "gpx2elev/0.2.2", "Accept-Encoding": "identity"})
+        self.session.headers.update({"User-Agent": f"gpx2elev/{__version__} (+https://github.com/nico579/gpx2elev)",
+                                     "Accept-Encoding": "identity"})
 
     def check(self):
         if self.cancel.is_set():
@@ -332,7 +336,12 @@ class PublicModels:
         if key in self.missing_images:
             raise MissingCoverage("Tuile Mapterhorn absente.")
         path = self.directory / f"mapterhorn_{key[0]}_{key[1]}_{key[2]}.webp"
-        data = path.read_bytes() if path.exists() else None
+        try:
+            data = path.read_bytes()
+        except OSError:
+            # Absente, ou remplacée à cet instant par un autre processus.
+            data = None
+        downloaded = False
         for attempt in range(2):
             if data is None:
                 try:
@@ -342,6 +351,7 @@ class PublicModels:
                         self.missing_images.add(key)
                         raise MissingCoverage("Tuile Mapterhorn absente.") from exc
                     raise
+                downloaded = True
             try:
                 with Image.open(io.BytesIO(data)) as image:
                     if image.width != image.height or image.width not in (256, 512):
@@ -352,7 +362,15 @@ class PublicModels:
                 if attempt:
                     raise
                 data = None
-        atomic_write(path, data)
+        # Une tuile lue sur le disque n'y est pas réécrite : plusieurs processus
+        # (gpx2dash en lance quatre) lisent les mêmes tuiles, et sous Windows
+        # remplacer un fichier qu'un autre processus lit échoue. La tuile décodée
+        # est en mémoire : un échec d'écriture ne coûte qu'un téléchargement futur.
+        with contextlib.suppress(OSError):
+            if downloaded:
+                atomic_write(path, data)
+            else:
+                path.touch()
         array = rgb[:, :, 0] * 256 + rgb[:, :, 1] + rgb[:, :, 2] / 256 - 32768
         array[array <= -32000] = np.nan
         self.images[key] = array
@@ -418,10 +436,13 @@ class PublicModels:
             try:
                 with rasterio.open(path) as dataset:
                     dataset.read(1, window=((0, 1), (0, 1)))
-                path.touch()
-                return path
             except (rasterio.errors.RasterioError, OSError):
                 path.unlink(missing_ok=True)
+            else:
+                # La date d'usage ne sert qu'à l'élagage : jamais une raison d'écarter la tuile.
+                with contextlib.suppress(OSError):
+                    path.touch()
+                return path
         self.http.check()
         if source == Source.COPERNICUS:
             data, _ = self.http.fetch(url)
@@ -440,7 +461,13 @@ class PublicModels:
                         self.http.check()
                         chunks.append(chunk)
                     data = b"".join(chunks)
-        atomic_write(path, data)
+        try:
+            atomic_write(path, data)
+        except OSError:
+            # Sous Windows, remplacer une tuile qu'un autre processus lit échoue :
+            # cet autre processus vient de la publier, sa copie fait l'affaire.
+            if not path.is_file():
+                raise
         return path
 
     def open_raster(self, source, key):
@@ -491,6 +518,7 @@ class PublicModels:
         name = tile_name(lat, lon)
         path = self.directory / f"{name}.hgt"
         length = 1201 * 1201 * 2
+        raw = None
         if not path.exists() or path.stat().st_size != length:
             regions = ["Eurasia", "Africa", "North_America", "South_America", "Australia", "Islands"]
             hint = "North_America" if lon < -30 and lat >= 0 else "South_America" if lon < -30 else "Australia" if lon > 100 and lat < 0 else "Africa" if lat < 38 and -30 <= lon <= 60 else "Eurasia"
@@ -506,11 +534,13 @@ class PublicModels:
                     if info is None or info.file_size != length:
                         raise ValueError("Archive SRTM invalide.")
                     raw = archive.read(info)
-                atomic_write(path, raw)
+                # Comme pour Mapterhorn : la tuile est en mémoire, la publier n'est qu'un cache.
+                with contextlib.suppress(OSError):
+                    atomic_write(path, raw)
                 break
             else:
                 raise MissingCoverage(f"Tuile SRTM {name} absente.")
-        array = np.frombuffer(path.read_bytes(), dtype=">i2").reshape(1201, 1201).astype(float)
+        array = np.frombuffer(raw if raw is not None else path.read_bytes(), dtype=">i2").reshape(1201, 1201).astype(float)
         array[array == -32768] = np.nan
         return bilinear(array, (points[:, 1] - lon) * 1200, (lat + 1 - points[:, 0]) * 1200)
 

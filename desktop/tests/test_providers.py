@@ -1,5 +1,6 @@
 import csv
 import errno
+import io
 from pathlib import Path
 import tempfile
 import threading
@@ -43,6 +44,28 @@ class MemoryHttp:
         else:
             start, end = map(int, span.split("-"))
         return self.data[start:end + 1], {"Content-Range": f"bytes {start}-{end}/{len(self.data)}", "ETag": '"fixture"'}
+
+
+class TileHttp:
+    """Sert la même tuile à chaque requête ; sans tuile, le réseau est interdit."""
+    def __init__(self, data):
+        self.data, self.urls = data, []
+
+    def check(self):
+        pass
+
+    def fetch(self, url, headers=None, **kwargs):
+        self.urls.append(url)
+        if self.data is None:
+            raise AssertionError("Réseau sollicité pour une tuile déjà sur le disque.")
+        return self.data, {}
+
+
+def webp_tile():
+    """Tuile Terrarium constante : 128 * 256 + 10 - 32768 = 10 m."""
+    buffer = io.BytesIO()
+    Image.fromarray(np.full((256, 256, 3), (128, 10, 0), dtype=np.uint8)).save(buffer, "WEBP", lossless=True)
+    return buffer.getvalue()
 
 
 class ProviderTests(unittest.TestCase):
@@ -172,6 +195,47 @@ class ProviderTests(unittest.TestCase):
             values = list(row.values())
             x, y = int(values[0]), int(values[1])
             np.testing.assert_array_equal(rgb[y, x], [int(v) for v in values[2:5]])
+
+    def test_mapterhorn_tile_read_from_disk_is_never_rewritten(self):
+        # gpx2dash lit les mêmes tuiles depuis quatre processus : sous Windows,
+        # réécrire une tuile qu'un autre processus lit échoue, et l'échec faisait
+        # retenir un modèle moins bien classé pour toute la trace.
+        with tempfile.TemporaryDirectory() as directory, patch("gpx2elev.providers.atomic_write") as write:
+            (Path(directory) / "mapterhorn_13_10_10.webp").write_bytes(webp_tile())
+            models = PublicModels(directory, TileHttp(None))
+            for _ in range(3):
+                models.images.clear()
+                np.testing.assert_array_equal(models.image(13, 10, 10), np.full((256, 256), 10.))
+        write.assert_not_called()
+
+    def test_downloaded_tiles_survive_a_failed_publication(self):
+        hgt = np.full((1201, 1201), 321, dtype=">i2").tobytes()
+        archive = io.BytesIO()
+        with zipfile.ZipFile(archive, "w") as stream:
+            stream.writestr("N45E005.hgt", hgt)
+        denied = PermissionError(errno.EACCES, "Accès refusé")
+        with tempfile.TemporaryDirectory() as directory, patch("gpx2elev.providers.atomic_write", side_effect=denied):
+            # La tuile est en mémoire : ne pas pouvoir la publier n'empêche pas de la lire.
+            self.assertEqual(float(PublicModels(directory, TileHttp(webp_tile())).image(13, 10, 10)[0, 0]), 10.)
+            srtm = PublicModels(directory, TileHttp(archive.getvalue())).srtm((45, 5), np.array([[45.5, 5.5]]))
+        np.testing.assert_allclose(srtm, [321.])
+
+    def test_raster_published_meanwhile_by_another_process_is_used(self):
+        tile = (RESOURCES / "copernicus.tif").read_bytes()
+
+        def concurrent(path, data):
+            Path(path).write_bytes(data)  # l'autre processus publie la même tuile...
+            raise PermissionError(errno.EACCES, "Accès refusé")  # ...et la lit pendant notre remplacement
+
+        with tempfile.TemporaryDirectory() as directory:
+            with patch("gpx2elev.providers.atomic_write", side_effect=concurrent):
+                path = PublicModels(directory, TileHttp(tile)).raster_path(Source.COPERNICUS, (45, 5))
+            self.assertEqual(path.read_bytes(), tile)
+            # Sans copie publiée, un disque plein reste une erreur : rasterio lit le fichier.
+            path.unlink()
+            with patch("gpx2elev.providers.atomic_write", side_effect=OSError(errno.ENOSPC, "disk full")), \
+                    self.assertRaises(OSError):
+                PublicModels(directory, TileHttp(tile)).raster_path(Source.COPERNICUS, (45, 5))
 
 
 if __name__ == "__main__":

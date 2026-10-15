@@ -9,7 +9,7 @@ android {
         applicationId = "com.nico.gpx2elev"
         minSdk = 26
         targetSdk = 34
-        versionCode = 13
+        versionCode = 14
         versionName = rootProject.file("VERSION").readText().trim()
     }
     signingConfigs.getByName("debug") {
@@ -34,7 +34,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    // buildConfig : VERSION_NAME pour le User-Agent des requêtes HTTP.
+    buildFeatures { compose = true; buildConfig = true }
     composeOptions { kotlinCompilerExtensionVersion = "1.5.14" }
     testOptions {
         unitTests.isIncludeAndroidResources = true
