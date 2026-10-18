@@ -9,6 +9,7 @@ async function request(route,payload) {
 }
 window.api={
   init:()=>request('init'),state:()=>request('state'),result:()=>request('result'),
+  obstacles:cfg=>request('obstacles',cfg),
   upload:cfg=>request('upload',cfg),recalculate:cfg=>request('recalculate',cfg),
   cancel:()=>request('cancel',{}),clearCache:()=>request('clear-cache',{confirm:true}),quit:()=>request('quit',{}),
   export:kind=>request('export?kind='+encodeURIComponent(kind)),

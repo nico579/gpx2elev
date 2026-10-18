@@ -179,12 +179,13 @@ class Http:
         if self.cancel.is_set():
             raise Cancelled("Calcul annulé.")
 
-    def fetch(self, url, *, headers=None, payload=None, max_bytes=128 * 1024 * 1024):
+    def fetch(self, url, *, headers=None, payload=None, form=None, timeout=(10, 15), max_bytes=128 * 1024 * 1024):
         for attempt in range(3):
             self.check()
             try:
-                method = "GET" if payload is None else "POST"
-                with self.session.request(method, url, headers=headers, json=payload, stream=True, timeout=(10, 15)) as response:
+                method = "GET" if payload is None and form is None else "POST"
+                with self.session.request(method, url, headers=headers, json=payload, stream=True, timeout=timeout,
+                                          **({"data": form} if form is not None else {})) as response:
                     response.raise_for_status()
                     # Reject a server ignoring a Range request before reading a multi-GB archive.
                     if headers and "Range" in headers and response.status_code != 206:

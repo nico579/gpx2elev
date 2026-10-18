@@ -2,7 +2,7 @@
 <html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light">
 <title>gpx2elev</title><link rel="icon" href="/favicon.ico"><link rel="stylesheet" href="/style.css">
-<script defer src="/web_bridge.js"></script><script defer src="/chart.js"></script><script defer src="/app.js"></script><script defer src="/nico579-maj.js"></script><script defer src="/nico579-reglages.js"></script><script defer src="/nico579-langue.js"></script>
+<script defer src="/web_bridge.js"></script><script defer src="/chart.js"></script><script defer src="/route.js"></script><script defer src="/app.js"></script><script defer src="/nico579-maj.js"></script><script defer src="/nico579-reglages.js"></script><script defer src="/nico579-langue.js"></script>
 </head><body><main>
 <header>
 <div class="brand"><svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="15"/><path d="M11 45 24 22 32 33 42 17 54 45"/></svg><div><h1>gpx2elev <small id="version"></small></h1><p data-i18n>Le dénivelé de votre parcours, à partir du terrain</p></div></div>
@@ -34,6 +34,20 @@
 <p id="selection" class="selection" aria-live="polite" data-i18n>Touchez la courbe pour lire les valeurs.</p>
 <p class="chart-help" data-i18n>Molette : zoom · glisser : déplacer · clic : lire les valeurs · double-clic : vue complète</p>
 </section>
+<section id="route-panel" class="plot-panel route-panel" aria-labelledby="route-title">
+<div class="plot-heading"><div><h2 id="route-title" data-i18n>Passage sur le parcours</h2><p data-i18n>Barrières, clôtures et accès selon votre sens de déplacement</p></div>
+<div class="chart-buttons"><button id="route-zoom-in" disabled data-i18n>Zoom +</button><button id="route-zoom-out" disabled data-i18n>Zoom −</button><button id="route-reset" disabled data-i18n>Vue complète</button></div></div>
+<div class="route-options"><label><span data-i18n>Déplacement</span><select id="obstacle-mode" disabled><option value="foot" data-i18n>À pied</option><option value="bicycle" data-i18n>À vélo</option><option value="motor_vehicle" data-i18n>Véhicule motorisé</option></select></label>
+<label class="online"><input id="route-reverse" type="checkbox" disabled><span data-i18n>Sens inverse du GPX</span></label><button id="obstacle-refresh" disabled data-i18n>Actualiser les obstacles</button></div>
+<p id="obstacle-alert" class="obstacle-alert" role="status" aria-live="polite" data-i18n>Importez une trace pour vérifier les obstacles.</p>
+<div class="legend route-legend"><span class="route-blue" data-i18n>Trace · passage non garanti</span><span class="route-red" data-i18n>Blocage signalé</span><span class="route-orange" data-i18n>Passage à vérifier</span></div>
+<div class="canvas-wrap route-canvas-wrap"><canvas id="route-map" tabindex="0" role="img" aria-label="Vue du parcours, sens et obstacles"></canvas><p id="route-empty" data-i18n>La vue du parcours apparaîtra après le calcul.</p></div>
+<p class="chart-help" data-i18n>Flèches : sens du parcours · clic sur un numéro : détail · molette : zoom · glisser : déplacer</p>
+<p id="obstacle-freshness" class="obstacle-freshness"></p>
+<ol id="obstacle-list" class="obstacle-list" aria-label="Obstacles dans le sens du parcours"></ol>
+<p class="route-warning" data-i18n>Données OSM non exhaustives : un passage peut avoir changé ou manquer. Les portions colorées indiquent les abords des obstacles.</p>
+<p class="route-attribution"><span data-i18n>Vue schématique hors ligne · Données</span> © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a></p>
+</section>
 <section class="comparison"><h2 data-i18n>Comparaison GPX</h2><p id="comparison" data-i18n>Altitudes GPX : les sommes brutes et filtrées seront affichées après le calcul.</p></section>
 <div id="details" class="details" role="status" hidden></div>
 <div class="exports"><button id="export-summary" disabled data-i18n>Exporter les résultats CSV</button><button id="export-profile" disabled data-i18n>Exporter le profil CSV</button><button id="cancel" class="danger" hidden data-i18n>Annuler</button></div>
@@ -47,6 +61,7 @@
 <p data-i18n>D+ estimé : rééchantillonnage à 5 m, gaussienne spatiale σ = 20 m (rayon 80 m), hystérésis de 2 m. Les segments et leurs extrémités sont conservés. Les coordonnées XY ne sont pas corrigées.</p>
 <p data-i18n>Ordre automatique : IGN LiDAR HD → Mapterhorn → FABDEM → Copernicus GLO-30 → SRTM90. Un seul modèle couvre toute la trace. Le GPX brut reste une comparaison distincte.</p>
 <p data-i18n>Le premier calcul demande Internet. Les coordonnées sont envoyées à l'IGN ; les autres modèles sont lus dans des tuiles publiques. Les profils et la dernière trace sont conservés localement. Aucune télémétrie.</p>
+<p data-i18n>Avec Internet autorisé, les coordonnées du parcours sont envoyées au service Overpass pour rechercher les obstacles OpenStreetMap. Les résultats sont conservés dans un cache local et peuvent être incomplets.</p>
 <p>IGN : Licence Ouverte · <a href="https://mapterhorn.com/attribution/" target="_blank" rel="noreferrer">Mapterhorn</a> · <a href="https://research-information.bris.ac.uk/en/datasets/fabdem-v1-2/" target="_blank" rel="noreferrer">FABDEM 1.2 : CC BY-NC-SA 4.0</a> · <a href="https://registry.opendata.aws/copernicus-dem/" target="_blank" rel="noreferrer">Copernicus DEM</a> · SRTM : NASA/USGS.</p>
 <p data-i18n>Interface web locale et composants partagés nico579-commons. Les licences des dépendances sont incluses dans le bundle.</p>
 <button class="primary" data-i18n>Fermer</button></form></dialog>

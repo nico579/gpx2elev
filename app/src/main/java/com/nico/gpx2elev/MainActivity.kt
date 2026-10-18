@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
                     export.launch("${name}_denivele.csv")
                 }, onClearMessage = model::clearMessage, cacheSize = cacheSize, onClearCache = model::clearCache,
                 updateState = updateState, onUpdates = updates::open, onUpdateClose = updates::dismiss,
+                onObstacleRefresh = model::refreshObstacles, onObstacleMode = model::setObstacleMode, onObstacleReverse = model::reverseObstacles,
                 onUpdateCheck = updates::check, onUpdateAction = {
                     if (updateState.phase == UpdatePhase.PERMISSION) {
                         try {

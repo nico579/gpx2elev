@@ -23,12 +23,82 @@ function clock(value,full=true){
 }
 function notify(error){$('notice').querySelector('span').textContent=t(error.message||String(error));$('notice').hidden=false;}
 const plot=new GpxChart.ProfilePlot($('chart'),{t,number,time:clock,select:window.api.select,error:notify,changed:updatePlotControls});
+
+let obstacleSending=false,obstacleRenderKey=null;
+const routeMap=new GpxRoute.RouteMap($('route-map'),{t,number,changed:updateRouteControls,select:selectObstacle});
+function updateRouteControls(){
+  const has=!!routeMap.data;
+  ['route-zoom-in','route-zoom-out','route-reset'].forEach(id=>$(id).disabled=!has);
+  $('route-empty').hidden=has;
+}
+function selectObstacle(index){
+  [...$('obstacle-list').children].forEach((row,i)=>row.classList.toggle('selected',i===index));
+  $('obstacle-list').children[index]?.scrollIntoView({block:'nearest',behavior:'smooth'});
+}
+function renderObstacles(state){
+  const available=!!(currentResult?.route&&state.has_result),report=available?(state.obstacles||{state:'idle',events:[]}):{state:'idle',events:[]};
+  const busy=state.busy||sending||obstacleSending||report.state==='loading';
+  ['obstacle-mode','route-reverse','obstacle-refresh'].forEach(id=>$(id).disabled=!available||busy);
+  if(!obstacleSending){$('obstacle-mode').value=report.mode||'foot';$('route-reverse').checked=!!report.reverse;}
+  const key=[revision,state.obstacle_revision??JSON.stringify(report),language,available].join('|');
+  if(key===obstacleRenderKey)return;
+  obstacleRenderKey=key;routeMap.setReport(report);
+  const events=routeMap.events,blocked=events.filter(e=>e.status==='blocked'),uncertain=events.filter(e=>e.status==='uncertain');
+  const alert=$('obstacle-alert');alert.dataset.level=blocked.length?'blocked':uncertain.length?'uncertain':'info';
+  let message;
+  if(!available)message=t('Importez une trace pour vérifier les obstacles.');
+  else if(report.state==='loading')message=t('Recherche des obstacles sur le parcours…');
+  else if(report.state==='unavailable'||report.state==='error')message=t('Obstacles non vérifiés : données indisponibles.');
+  else if(report.state!=='ready')message=t('Les obstacles de ce parcours ne sont pas encore vérifiés.');
+  else if(blocked.length){
+    message=t('{0} blocage(s) signalé(s) · premier à {1} km du départ.')
+      .replace('{0}',number(blocked.length)).replace('{1}',number(blocked[0].distance_m/1000,2));
+    if(uncertain.length)message+=' '+t('{0} passage(s) à vérifier.').replace('{0}',number(uncertain.length));
+  }else if(uncertain.length)message=t('{0} passage(s) à vérifier.').replace('{0}',number(uncertain.length));
+  else message=t('Aucun obstacle signalé dans les données disponibles. Le passage reste à vérifier sur le terrain.');
+  alert.textContent=message;
+  const notes=[];
+  if(report.fetched_at)notes.push(t('Données du {0}').replace('{0}',clock(report.fetched_at)));
+  if(report.from_cache)notes.push(t('Données en cache'));
+  if(report.stale)notes.push(t('Données anciennes : actualisation nécessaire'));
+  if(report.message)notes.push(t(report.message));
+  $('obstacle-freshness').textContent=notes.join(' · ');
+  const list=$('obstacle-list');list.replaceChildren();
+  const fragment=document.createDocumentFragment();
+  events.forEach((event,index)=>{
+    const row=document.createElement('li');row.dataset.status=event.status;
+    const pick=document.createElement('button');pick.type='button';pick.className='obstacle-pick';
+    const label=t(event.label||event.kind||'Obstacle');
+    pick.textContent=(index+1)+'. '+label+(event.name?' · '+event.name:'')+' — '+number(event.distance_m/1000,2)+' km';
+    pick.onclick=()=>routeMap.select(index,true);
+    const reason=document.createElement('p');
+    reason.textContent=t(event.status==='blocked'?'Blocage signalé':'Passage à vérifier')+' · '+t(event.reason||'');
+    row.append(pick,reason);
+    if(['node','way','relation'].includes(event.osm_type)&&/^[1-9]\d*$/.test(String(event.osm_id))){
+      const link=document.createElement('a');link.href='https://www.openstreetmap.org/'+event.osm_type+'/'+event.osm_id;
+      link.target='_blank';link.rel='noopener noreferrer';link.textContent=t('Voir cet obstacle dans OpenStreetMap');row.append(link);
+    }
+    fragment.append(row);
+  });
+  list.append(fragment);
+}
+async function analyzeObstacles(refreshData=false){
+  if(obstacleSending||!currentState||currentState.busy)return;
+  const config={mode:$('obstacle-mode').value,reverse:$('route-reverse').checked,refresh:refreshData,online:$('online').checked};
+  obstacleSending=true;render(currentState);
+  try{await window.api.obstacles(config);await refresh();}
+  catch(error){notify(error);}
+  finally{obstacleSending=false;await refresh().catch(notify);}
+}
+
 function applyLanguage(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{if(!el.dataset.original)el.dataset.original=el.textContent;el.textContent=t(el.dataset.original);});
   $('dropzone').setAttribute('aria-label',t('Choisir ou déposer un GPX'));
   $('chart').setAttribute('aria-label',t("Profils d'altitude : terrain lissé et mesures GPX"));
+  $('route-map').setAttribute('aria-label',t('Vue du parcours, sens et obstacles'));
+  $('obstacle-list').setAttribute('aria-label',t('Obstacles dans le sens du parcours'));
   document.querySelectorAll('[aria-label="Fermer"],[aria-label="Close"]').forEach(el=>el.setAttribute('aria-label',t('Fermer')));
-  if(currentState)render(currentState);plot.draw();
+  if(currentState)render(currentState);plot.draw();routeMap.draw();
 }
 document.addEventListener('nico579-langue',event=>{language=event.detail.code;applyLanguage();});
 function updatePlotControls(){
@@ -48,8 +118,9 @@ function gainText(gain){return gain?'D+ '+number(gain.Dplus_m)+' m / D− '+numb
 function render(state){
   const busy=state.busy||sending;
   ['import','model','online'].forEach(id=>$(id).disabled=busy);$('recalculate').disabled=busy||!state.has_input;
-  $('clear-cache').disabled=busy||!Object.values(state.cache).some(x=>x>0)||!!state.cache_error;
-  $('cancel').hidden=state.phase!=='calculate'||!state.busy;$('cancel').disabled=state.message==='Annulation en cours…';
+  $('online').disabled=busy||state.obstacles?.state==='loading';
+  $('clear-cache').disabled=busy||!Object.values(state.cache).some(x=>x>0)||!!state.cache_error||obstacleSending||state.obstacles?.state==='loading';
+  $('cancel').hidden=!(state.phase==='calculate'&&state.busy)&&state.obstacles?.state!=='loading';$('cancel').disabled=state.message==='Annulation en cours…';
   if(!optionsDirty){$('online').checked=state.online;$('model').value=state.model||'';}
   const progress=$('progress');progress.hidden=!state.busy;
   if(state.total>0){progress.max=state.total;progress.value=state.completed;}else progress.removeAttribute('value');
@@ -75,10 +146,11 @@ function render(state){
     if(state.phase==='error')messages.push(t(state.message));$('details').textContent=messages.join('\n\n');$('details').hidden=!messages.length;
     if(state.phase==='done'&&state.message==='Calcul terminé')$('status').textContent=t('Calcul terminé')+' · '+number(summary.points_origine)+' '+t('points GPX')+' · '+number(summary.positions_5m)+' '+t('positions à 5 m');
   }
+  renderObstacles(state);
 }
 async function refresh(){
   const state=await window.api.state();currentState=state;
-  if(state.revision!==revision){const result=await window.api.result();revision=result.revision;currentResult=result.summary?result:null;plot.setData(result.chart,result.summary);}
+  if(state.revision!==revision){const result=await window.api.result();revision=result.revision;currentResult=result.summary?result:null;plot.setData(result.chart,result.summary);routeMap.setData(result.route);obstacleRenderKey=null;}
   render(state);
 }
 const options=()=>({online:$('online').checked,model:$('model').value||null});
@@ -96,6 +168,8 @@ async function upload(file){
   }catch(error){notify(error);}
   finally{sending=false;$('file').value='';await refresh().catch(notify);}
 }
+$('route-zoom-in').onclick=()=>routeMap.zoom(2);$('route-zoom-out').onclick=()=>routeMap.zoom(.5);$('route-reset').onclick=()=>routeMap.reset();
+$('obstacle-mode').onchange=()=>analyzeObstacles();$('route-reverse').onchange=()=>analyzeObstacles();$('obstacle-refresh').onclick=()=>analyzeObstacles(true);
 $('import').onclick=()=>$('file').click();$('file').onchange=e=>upload(e.target.files[0]);
 $('dropzone').onclick=()=>{if(currentState&&!currentState.busy)$('file').click();};
 $('dropzone').onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('dropzone').click();}};

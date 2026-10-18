@@ -50,7 +50,7 @@ def run_smoke(report_path, fixtures=None):
 
         try:
             assert not serveweb.fichiers_manquants(), serveweb.fichiers_manquants()
-            for asset in ("/", "/app.js", "/chart.js", "/style.css", "/web_bridge.js", "/nico579-langue.js",
+            for asset in ("/", "/app.js", "/chart.js", "/route.js", "/style.css", "/web_bridge.js", "/nico579-langue.js",
                           "/nico579-maj.js", "/nico579-reglages.js", "/NotoSans.ttf", "/favicon.ico"):
                 assert request(asset), asset
             assert request("/api/init")["app"] == "gpx2elev"

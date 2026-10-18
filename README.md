@@ -6,14 +6,14 @@
 
 **gpx2elev** estime le dénivelé positif (D+), le dénivelé négatif (D−) et le profil d'altitude d'une trace GPX. L'application Android est développée en Kotlin et Jetpack Compose.
 
-[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.5.2**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
+[Télécharger l'APK Android avec les bundles Python](https://github.com/nico579/gpx2elev/releases/latest). Android et Python utilisent la même version **0.6.0**, définie dans `VERSION`. GitHub Actions construit l'APK signé et les quatre bundles sur chaque tag `v*`, vérifie les tests et les SHA-256, puis publie les cinq fichiers dans une seule release. Un contrôle bloque toute différence entre le tag et les versions. La clé Android est fournie par le secret chiffré `ANDROID_KEYSTORE_BASE64` ; elle n'est pas incluse dans Git.
 
 
 Les versions pour ordinateur utilisent une page web locale et le systray nico579-commons, comme gpxsolar, blink2video, watch2notif et lidar2map. Voir le [guide de l'interface web](desktop/README.md).
 
 ## Utilisation
 
-Android 0.5.2 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
+Android 0.6.0 utilise le nouvel identifiant `com.nico.gpx2elev`. Android l’installe comme une nouvelle application, à côté des versions 0.1/0.2 ; leurs données locales ne sont pas migrées automatiquement. Réimporter les GPX dans la nouvelle application.
 
 Le sélecteur **FR / EN**, en haut de chaque application, change immédiatement la langue et mémorise le choix. Au premier lancement, la langue du système détermine le choix : français pour un système français, anglais sinon. Les nombres suivent la langue choisie ; les calculs et les schémas CSV restent identiques.
 
@@ -34,6 +34,18 @@ L'axe horizontal affiche la distance et l'**heure locale issue des points GPX**.
 **Menu ⋮ → Mises à jour** vérifie manuellement la dernière release stable officielle sur GitHub. La version, la taille du téléchargement et les notes sont affichées avant **Télécharger et installer**. L'APK est contrôlé par SHA-256, identifiant, version et certificat de signature. **Installer** ouvre ensuite l'installateur Android ; si nécessaire, **Autoriser l'installation** ouvre les réglages pour autoriser gpx2elev. Revenez dans l'application après ce réglage. Le téléchargement peut être annulé et l'installation attend la fin d'un calcul. Aucune vérification ne démarre automatiquement. Les versions déjà publiées sans ce menu doivent être remplacées manuellement une première fois.
 
 **Cache des altitudes** affiche la taille totale et le détail profils/tuiles en Mio. **Vider le cache** demande confirmation et supprime les données téléchargées, y compris les fichiers temporaires interrompus. Le GPX, les réglages, les exports et le résultat affiché sont conservés. Les prochains calculs devront télécharger les altitudes à nouveau. Le bouton est désactivé pendant un calcul ou une suppression. Les plafonds de 64 Mio pour les profils et 512 Mio pour les tuiles sont appliqués après les calculs ; un téléchargement peut temporairement les dépasser.
+
+## Barrières et passages sur le parcours
+
+Après le calcul, **Passage sur le parcours** affiche une vue de dessus avec le départ, l'arrivée et des flèches de progression. La recherche OpenStreetMap distingue les **blocages signalés en rouge** et les **passages à vérifier en orange**. Chaque numéro indique la nature de l'obstacle, sa raison et sa distance depuis le départ. La couleur porte sur les abords du franchissement (jusqu'à 25 m de part et d'autre), pas sur toute la suite de la trace.
+
+Choisir **À pied**, **À vélo** ou **Véhicule motorisé** adapte les autorisations. **Sens inverse du GPX** inverse l'ordre des rencontres et les distances, et réévalue les restrictions directionnelles lorsque le sens de la voie OSM est connu. Ce réglage de consultation ne réécrit pas le fichier GPX. Une barrière levante sans indication d'accès reste à vérifier ; une clôture parallèle à la trace ne constitue pas un franchissement. Les ouvertures cartographiées sont prises en compte.
+
+Les environs du parcours sont transmis à l'API Overpass pour obtenir les données **© contributeurs OpenStreetMap, ODbL**. Les réponses sont conservées sept jours avant actualisation automatique ; hors connexion, leur date et leur ancienneté restent indiquées. **Vérifier les obstacles** sur Android, ou **Actualiser les obstacles** sur ordinateur, relance la recherche. Une erreur réseau signale que les obstacles n'ont pas pu être vérifiés ou que seules d'anciennes données sont disponibles, et conserve le résultat d'altitude. Les données sont incluses dans le cache des tuiles et supprimées par **Vider le cache**.
+
+La vue est schématique, sans fond de carte téléchargé. OSM peut omettre un obstacle ou ne pas refléter son état actuel. Les coordonnées GPX, les horaires, les conditions particulières et les franchissements à des niveaux différents peuvent demander une vérification sur place ; une trace bleue ne garantit pas le passage. Les barrières définies uniquement par une relation OSM ne sont pas analysées. Android limite la zone de recherche à 2 500 km² et 2° d'étendue ; sur ordinateur, la recherche suit un couloir autour de la trace, avec au maximum 64 requêtes. Au-delà, l'analyse est signalée indisponible.
+
+Références : [barrières OSM](https://wiki.openstreetmap.org/wiki/Key:barrier), [droits d'accès](https://wiki.openstreetmap.org/wiki/Key:access), [licence et contributeurs](https://www.openstreetmap.org/copyright).
 
 ## Protocole
 

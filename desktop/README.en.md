@@ -4,7 +4,7 @@
 
 A Python application with a local web interface and standalone bundles containing Python and elevation readers. Server, language, version checker, automatic updates and system tray: [nico579-commons](https://github.com/nico579/nico579-commons), like gpxsolar, blink2video, watch2notif and lidar2map. **You do not need to install Python to use a bundle.**
 
-[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.5.2**. GitHub Actions builds all five release assets and verifies them before publication.
+[Download the latest release](https://github.com/nico579/gpx2elev/releases/latest). The same release includes the signed Android APK. Android and desktop share version **0.6.0**. GitHub Actions builds all five release assets and verifies them before publication.
 
 The interface adapts to resizing and maximizing. If the screen is too short, a scrollbar provides access to the bottom of the page; card values remain fully visible and controls do not overlap the chart.
 
@@ -55,6 +55,16 @@ Pause duration does not affect the calculation. Repeated coordinates retain the 
 Mapterhorn uses zoom 13 and parent tiles when necessary. FABDEM tiles are extracted through partial ZIP/ZIP64 requests. Desktop downloads the relevant Copernicus COG tile before interpolation. SRTM uses SRTM3 v2.1 HGT. IGN uses `ign_lidar_hd_mnt_mono_wld`, batches of at most 5,000 positions and seven decimal places.
 
 Elevation gain is an estimate affected by the terrain model, XY coordinates and filtering, rather than a field-validated measurement of the true gain.
+
+## Route view and barriers
+
+The new **Passage along the route** panel displays an overhead trace with arrows, start and finish. Red sections mark reported obstructions; orange sections need checking. Click a numbered marker or its list entry to inspect the reason and distance from the start. Wheel, drag and **Full view** control the map.
+
+Walking, cycling and motor vehicle modes use their respective OSM access tags. **Reverse GPX direction** reorders encounters and reevaluates directional access when its orientation is known. Coloured sections show up to 25 m before and after each crossing, without joining separate GPX segments. Parallel fences are ignored and mapped openings are considered.
+
+When Internet is allowed, route corridor coordinates are sent to Overpass. OSM responses are cached for seven days, and **Refresh obstacles** forces a new online query. Offline results show their date and age. A network failure leaves the elevation result intact and reports obstacles as unchecked. The obstacle cache is part of the tile cache.
+
+This schematic view works without downloaded map tiles. OSM data may be incomplete or outdated; no alert is not a guarantee of access. Unknown gates, unevaluated conditions/hours and point obstacles between 3 and 8 m from the trace are warnings. Relation-only barriers are not analysed. Queries are limited to 64 requests with responses of at most 16 MiB; incomplete analysis is explicitly reported. Data [© OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
 
 ## Cache and privacy
 

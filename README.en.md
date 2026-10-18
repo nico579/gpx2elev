@@ -11,7 +11,7 @@ Desktop versions use a local web page and the common nico579-commons system tray
 
 ## Usage
 
-Android 0.5.2 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
+Android 0.6.0 uses the new identifier `com.nico.gpx2elev`. Android installs it as a new application alongside versions 0.1/0.2; their local data are not migrated automatically. Import your GPX tracks into the new application.
 
 1. Install the APK on Android 8.0 or later, or extract the desktop bundle for your platform.
 2. Select **EN / FR** at the top of the screen. The selection is saved. The first launch uses French on a French-language device, and English otherwise.
@@ -32,6 +32,16 @@ The horizontal axis shows distance and **local time from GPX observations**. Tap
 **Menu ⋮ → Updates** manually checks GitHub for the latest official stable release. The version, download size and release notes appear before **Download and install**. The APK's SHA-256, application identifier, version and signing certificate are verified. **Install** then opens the Android installer; if needed, **Allow installation** opens settings to authorize gpx2elev. Return to the application after changing this setting. Downloads can be cancelled, and installation waits for calculations to finish. Updates are never checked automatically. Previously published versions without this menu require one manual upgrade first.
 
 **Elevation cache** shows the total size and the profile/tile breakdown in MiB. **Clear cache** asks for confirmation and removes downloaded data, including interrupted temporary files. The GPX, settings, exports and displayed result are kept. Future calculations will need to download elevations again. Clearing is disabled during a calculation or deletion. The limits of 64 MiB for profiles and 512 MiB for tiles are applied after calculations; downloads can temporarily exceed them.
+
+## Barriers along the route
+
+After calculation, **Passage along the route** shows a schematic overhead view with start, finish and direction arrows. Red sections mark reported obstructions; orange sections need checking. Numbered entries show the barrier, reason and distance from the selected start. The coloured sections extend up to 25 m on each side of the crossing within its GPX segment.
+
+Select walking, cycling or motor vehicle access. Reversing the GPX direction reorders encounters and recalculates directional restrictions when the OSM way orientation is known; it does not modify the GPX file. Parallel fences are ignored, and mapped openings are considered. An unclassified gate is a warning rather than an assumed blockage.
+
+The route surroundings are sent to Overpass to retrieve OpenStreetMap data. Responses are cached for seven days before online refresh; offline results show their date and age. Network errors preserve the elevation result and explicitly leave obstacles unchecked. The obstacle cache is included with the tile cache. Android limits queries to 2,500 km² and a 2° extent; desktop follows a route corridor with up to 64 queries. Larger/incomplete analyses are reported as unavailable.
+
+OSM may omit barriers or contain outdated access information. Coordinates, conditions, opening hours and crossings at different levels may require checking on the ground. A blue trace does not guarantee access. Barriers represented only by OSM relations are not analysed. Data [© OpenStreetMap contributors, ODbL](https://www.openstreetmap.org/copyright).
 
 ## Calculation protocol
 
@@ -72,7 +82,7 @@ Release APKs are built by GitHub Actions. For local development, open the reposi
 
 APK output: `app/build/outputs/apk/release/app-release.apk`. Local releases use the project's development key in `app/debug.keystore`, excluded from Git. Keep that key locally for compatible updates. Clones without it use Gradle's default Android development key. The OBD2 Dash key is not used.
 
-Android and Python share version **0.5.2**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
+Android and Python share version **0.6.0**, defined in `VERSION`. The [Release workflow](.github/workflows/release.yml) builds the signed APK and all four desktop bundles on GitHub for each `v*` tag. Tests, versions, the signing certificate and SHA-256 checksums are verified before publishing one combined release. The Android key is supplied through the encrypted `ANDROID_KEYSTORE_BASE64` repository secret, never through Git.
 
 For a new release, update `VERSION` and `desktop/gpx2elev/assets/version.txt`, increment the Android `versionCode`, and push the matching tag. Version mismatches block publication.
 

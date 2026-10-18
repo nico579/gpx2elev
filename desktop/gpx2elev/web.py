@@ -13,7 +13,7 @@ import urllib.request
 import numpy as np
 from nico579_commons import atomique, environnement, langue, maj, maj_archive, maj_install, serveweb
 
-from . import __version__, updates
+from . import __version__, updates, obstacles
 from .cache import cache_sizes, clear_cache
 from .chart_data import ChartObservations
 from .core import MAX_GPX_BYTES
@@ -50,7 +50,12 @@ class Application:
         self.stop_event = threading.Event()
         self.worker = None
         self.cancel_event = threading.Event()
-        self.result = self.observations = self.chart = None
+        self.result = self.observations = self.chart = self.route = None
+        self.obstacle_cancel = threading.Event()
+        self.obstacle_workers = set()
+        self.obstacle_generation = 0
+        self.obstacle_revision = 0
+        self.obstacle_report = {"state": "idle", "events": [], "mode": "foot", "reverse": False}
         self.current = self.pending = None
         self.online, self.model = online, model
         self.revision = 0
@@ -96,7 +101,8 @@ class Application:
             return {**self.state, "busy": self.busy(), "revision": self.revision,
                     "has_result": self.result is not None, "has_input": self.current is not None,
                     "online": self.online, "model": self.model, "cache": self.cache_bytes.copy(),
-                    "cache_error": self.cache_error}
+                    "cache_error": self.cache_error, "obstacles": self.obstacle_report,
+                    "obstacle_revision": self.obstacle_revision}
 
     def progress(self, message, completed=0, total=0):
         with self.lock:
@@ -124,7 +130,12 @@ class Application:
                 return {"error": "Une opération est déjà en cours."}
             self.current = (name, data)
             self.online, self.model = online, model
-            self.result = self.observations = self.chart = None
+            self.result = self.observations = self.chart = self.route = None
+            self.obstacle_cancel.set()
+            self.obstacle_generation += 1
+            self.obstacle_report = {"state": "idle", "events": [], "mode": self.obstacle_report["mode"],
+                                    "reverse": self.obstacle_report["reverse"]}
+            self.obstacle_revision += 1
             self.revision += 1
             self.cancel_event = threading.Event()
             self.state = {"phase": "calculate", "message": "Lecture de la trace GPX", "completed": 0,
@@ -196,6 +207,7 @@ class Application:
             return {"error": str(exc)}
 
     def _calculate(self, name, data, online, model):
+        completed_result = None
         try:
             with tempfile.TemporaryDirectory(prefix="input-", dir=self.directory) as folder:
                 path = Path(folder) / "input.gpx"
@@ -211,6 +223,8 @@ class Application:
                                 "time": _numbers(observations.times), "group": observations.groups.tolist()}}
             with self.lock:
                 self.result, self.observations, self.chart = result, observations, chart
+                self.route = obstacles.route_view(result.prepared)
+                completed_result = result
                 self.state.update(phase="done", message="Calcul terminé", completed=0, total=0)
                 self.revision += 1
             try:
@@ -226,6 +240,9 @@ class Application:
                 self.state.update(phase="error", message=str(exc))
         finally:
             self._finished()
+            with self.lock:
+                if completed_result is not None and self.result is completed_result and not self.busy() and not self.stop_event.is_set():
+                    self.check_obstacles({"online": online})
 
     def _finished(self):
         with self.lock:
@@ -238,6 +255,7 @@ class Application:
     def cancel(self, _payload=None):
         with self.lock:
             self.cancel_event.set()
+            self.obstacle_cancel.set()
             if self.state["phase"] == "calculate":
                 self.state["message"] = "Annulation en cours…"
         return {"ok": True}
@@ -245,7 +263,55 @@ class Application:
     def get_result(self):
         with self.lock:
             return {"revision": self.revision, "summary": self.result.summary() if self.result else None,
-                    "chart": self.chart}
+                    "chart": self.chart, "route": self.route}
+
+    def get_obstacles(self):
+        with self.lock:
+            return {**self.obstacle_report, "revision": self.obstacle_revision}
+
+    def check_obstacles(self, payload):
+        if not isinstance(payload, dict):
+            return {"error": "Options des obstacles invalides."}
+        with self.lock:
+            if self.stop_event.is_set() or self.result is None or self.busy() or self.updating():
+                return {"error": "Attendez le calcul du GPX avant de vérifier les obstacles."}
+            mode = payload.get("mode", self.obstacle_report["mode"])
+            reverse = payload.get("reverse", self.obstacle_report["reverse"])
+            online = payload.get("online", self.online)
+            refresh = payload.get("refresh", False)
+            if mode not in obstacles.MODES or any(type(v) is not bool for v in (reverse, online, refresh)):
+                return {"error": "Options des obstacles invalides."}
+            self.obstacle_cancel.set()
+            cancel = self.obstacle_cancel = threading.Event()
+            self.obstacle_generation += 1
+            generation = self.obstacle_generation
+            prepared = self.result.prepared
+            self.obstacle_report = {"state": "loading", "message": "Vérification des obstacles OSM…",
+                                    "events": [], "mode": mode, "reverse": reverse}
+            self.obstacle_revision += 1
+            worker = threading.Thread(target=self._obstacles, args=(prepared, generation, cancel, online, mode, reverse, refresh), daemon=True)
+            self.obstacle_workers.add(worker)
+            worker.start()
+            return {"ok": True}
+
+    def _obstacles(self, prepared, generation, cancel, online, mode, reverse, refresh):
+        try:
+            report = obstacles.obtain(prepared, self.directory, online, mode, reverse, cancel, refresh)
+        except Cancelled:
+            report = {"state": "unavailable", "message": "Vérification annulée : obstacles non vérifiés.",
+                      "events": [], "mode": mode, "reverse": reverse}
+        except Exception:
+            # A network/data failure must not be reported as zero barriers.
+            report = {"state": "error", "message": "Service OSM indisponible ou réponse incomplète : obstacles non vérifiés. Réessayez.",
+                      "events": [], "mode": mode, "reverse": reverse}
+        finally:
+            with self.lock:
+                self.obstacle_workers.discard(threading.current_thread())
+        with self.lock:
+            if generation == self.obstacle_generation:
+                self.obstacle_report = report
+                self.obstacle_revision += 1
+                self.refresh_cache()
 
     def select(self, x, y, left, right):
         try:
@@ -276,7 +342,7 @@ class Application:
         if not isinstance(payload, dict) or payload.get("confirm") is not True:
             return {"error": "Confirmation requise."}
         with self.lock:
-            if self.busy() or self.updating():
+            if self.busy() or self.obstacle_workers or self.updating():
                 return {"error": "Une opération est déjà en cours."}
             self.state.update(phase="cache", message="Suppression du cache…", completed=0, total=0)
             self.worker = threading.Thread(target=self._clear, daemon=True)
@@ -298,14 +364,22 @@ class Application:
     def stop(self, _payload=None):
         self.stop_event.set()
         self.cancel_event.set()
+        self.obstacle_cancel.set()
         if self.tray:
             self.tray.arret.set()
         return {"ok": True}
 
     def close(self):
         self.stop()
-        if self.worker:
-            self.worker.join(40)
+        # Registration and start happen under this lock: never join a thread
+        # while another caller has registered it but has not started it yet.
+        with self.lock:
+            calculation = self.worker
+            obstacle_workers = list(self.obstacle_workers)
+        if calculation:
+            calculation.join(40)
+        for worker in obstacle_workers:
+            worker.join(45)
 
     def routes(self):
         language_get, language_post = langue.routes(self.load_language, self.save_language, enregistrer_detection=True)
@@ -313,15 +387,18 @@ class Application:
         # banner (nico579-maj.js) and settings panel (nico579-reglages.js).
         update_get, update_post = maj_install.routes(self.installer, lambda: self.load_language() or "fr")
         return ({"init": self.init, "state": self.snapshot, "result": self.get_result, "select": self.select,
+                 "obstacles": self.get_obstacles,
                  "export": self.export, **language_get, **update_get},
                 {"upload": self.upload, "open": self.open_request, "recalculate": self.recalculate,
+                 "obstacles": self.check_obstacles,
                  "cancel": self.cancel, "clear-cache": self.clear, "quit": self.stop, **language_post, **update_post})
 
 
 class Handler(serveweb.Handler):
     fichiers_statiques = {**serveweb.FICHIERS_STATIQUES,
                           "/NotoSans.ttf": ("../NotoSans.ttf", "font/ttf"),
-                          "/chart.js": ("chart.js", "text/javascript; charset=utf-8")}
+                          "/chart.js": ("chart.js", "text/javascript; charset=utf-8"),
+                          "/route.js": ("route.js", "text/javascript; charset=utf-8")}
     arguments_get = {"export": lambda q: ((q.get("kind") or [""])[0],),
                      "select": lambda q: tuple((q.get(key) or ["0"])[0] for key in ("x", "y", "left", "right"))}
 

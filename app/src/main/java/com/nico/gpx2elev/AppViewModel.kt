@@ -21,13 +21,19 @@ import java.nio.file.StandardCopyOption
 import java.util.Locale
 
 data class Result(val name: String, val prepared: PreparedTrack, val computed: Computed, val series: ElevationSeries, val date: Long)
-data class AppState(val busy: Boolean = false, val progress: Progress? = null, val result: Result? = null, val error: String? = null, val fileName: String? = null, val clearingCache: Boolean = false, val cacheMessage: String? = null)
+data class ObstacleState(val checking: Boolean = false, val report: ObstacleReport? = null, val error: String? = null,
+    val notice: String? = null, val fetchedAt: Long? = null, val mode: TravelMode = TravelMode.FOOT, val reverse: Boolean = false)
+data class AppState(val busy: Boolean = false, val progress: Progress? = null, val result: Result? = null, val error: String? = null, val fileName: String? = null, val clearingCache: Boolean = false, val cacheMessage: String? = null,
+    val obstacles: ObstacleState = ObstacleState())
 
 class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val mutableState = MutableStateFlow(AppState())
     val state = mutableState.asStateFlow()
     private var job: Job? = null
     private var transport: HttpTransport? = null
+    private var obstacleJob: Job? = null
+    private var obstacleTransport: HttpTransport? = null
+    private var obstacleSnapshot: ObstacleSnapshot? = null
     private var retryUri: Uri? = null
     private var pendingUri: Uri? = null
     private val base = File(application.filesDir, "elevation").apply { mkdirs() }
@@ -45,8 +51,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearCache() {
         if (state.value.busy) return
+        obstacleJob?.cancel(); obstacleTransport?.cancel()
         mutableState.value = state.value.copy(busy = true, clearingCache = true, error = null,
-            progress = Progress("Suppression du cache…", 0, 0))
+            progress = Progress("Suppression du cache…", 0, 0), obstacles = state.value.obstacles.copy(checking = false))
         viewModelScope.launch {
             var message = "Cache vidé."
             try {
@@ -91,9 +98,54 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         mutableState.value = mutableState.value.copy(busy = false, progress = null)
     }
 
+    private fun online(): Boolean {
+        val manager = getApplication<Application>().getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        return manager.activeNetwork?.let { manager.getNetworkCapabilities(it)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } == true
+    }
+
+    fun setObstacleMode(mode: TravelMode) {
+        mutableState.value = state.value.copy(obstacles = state.value.obstacles.copy(mode = mode, report = null))
+        checkObstacles(useSnapshot = true)
+    }
+
+    fun reverseObstacles() {
+        mutableState.value = state.value.copy(obstacles = state.value.obstacles.copy(reverse = !state.value.obstacles.reverse, report = null))
+        checkObstacles(useSnapshot = true)
+    }
+
+    fun refreshObstacles() = checkObstacles(refresh = true)
+
+    private fun checkObstacles(refresh: Boolean = false, useSnapshot: Boolean = false) {
+        val result = state.value.result ?: return
+        obstacleJob?.cancel(); obstacleTransport?.cancel()
+        val http = HttpTransport(); obstacleTransport = http
+        val options = state.value.obstacles
+        mutableState.value = state.value.copy(obstacles = options.copy(checking = true, error = null))
+        obstacleJob = viewModelScope.launch {
+            try {
+                val (snapshot, report) = withContext(Dispatchers.IO) {
+                    val snapshot = if (useSnapshot && obstacleSnapshot != null) obstacleSnapshot!! else
+                        storageLock.withLock { ObstacleRepository(File(base, "tiles/obstacles"), http).obtain(result.prepared, online(), refresh) }
+                    ensureActive()
+                    snapshot to RouteObstacles.analyze(result.prepared, snapshot.data, options.mode, options.reverse)
+                }
+                if (state.value.result === result) {
+                    obstacleSnapshot = snapshot
+                    mutableState.value = state.value.copy(obstacles = options.copy(checking = false, error = null, report = report, fetchedAt = snapshot.fetchedAt, notice = snapshot.notice))
+                }
+                withContext(Dispatchers.IO) { storageLock.withLock { mutableCacheSize.value = CacheStorage.size(base) } }
+            } catch (_: CancellationException) { }
+            catch (e: Exception) {
+                if (isActive && state.value.result === result) mutableState.value = state.value.copy(obstacles = options.copy(checking = false,
+                    error = "Vérification des obstacles indisponible : " + (e.message ?: "erreur réseau.")))
+            }
+        }
+    }
+
     private fun analyze(name: String, uri: Uri?) {
         if (state.value.clearingCache) return
         cancel()
+        obstacleJob?.cancel(); obstacleTransport?.cancel(); obstacleSnapshot = null
         retryUri = uri
         val http = HttpTransport()
         transport = http
@@ -146,6 +198,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     Result(name, prepared, computed, series, System.currentTimeMillis())
                 } }
                 mutableState.value = AppState(result = result, fileName = name)
+                checkObstacles()
             } catch (_: CancellationException) { }
             catch (exception: Exception) {
                 if (isActive) mutableState.value = AppState(error = exception.message ?: "Le calcul a échoué.", fileName = name)
@@ -189,7 +242,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    override fun onCleared() { transport?.cancel(); super.onCleared() }
+    override fun onCleared() { transport?.cancel(); obstacleTransport?.cancel(); super.onCleared() }
 
     companion object {
         fun exportText(r: Result): String {

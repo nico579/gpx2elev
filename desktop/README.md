@@ -6,7 +6,7 @@ Application Python avec une interface web locale et des bundles autonomes inclua
 
 [Télécharger la release](https://github.com/nico579/gpx2elev/releases/latest).
 
-La même release contient l'APK Android signé `gpx2elev-0.5.2.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.5.2, construite sur GitHub Actions.
+La même release contient l'APK Android signé `gpx2elev-0.6.0.apk`, son rapport `verification-android.json` et sa somme SHA-256. Android et Python portent tous deux la version 0.6.0, construite sur GitHub Actions.
 
 L'interface s'adapte au redimensionnement et à la maximisation. Si l'écran manque de hauteur, une barre de défilement permet d'atteindre le bas de page ; les chiffres des cartes restent entièrement visibles et les commandes ne chevauchent pas le graphique.
 
@@ -57,6 +57,16 @@ Le calcul est indépendant de la durée des pauses. Le dernier point d'un arrêt
 Mapterhorn utilise le zoom 13 et les parents si une tuile manque. FABDEM est extrait par requêtes HTTP partielles dans ses archives ZIP/ZIP64 ; seule la tuile GeoTIFF nécessaire est téléchargée. Copernicus télécharge la tuile COG entière, puis l'interpole : le résultat suit le même géoréférencement que le lecteur Android. SRTM utilise les HGT SRTM3 v2.1. L'IGN utilise la même ressource `ign_lidar_hd_mnt_mono_wld`, par lots de 5 000 positions à sept décimales.
 
 L'estimation dépend du MNT, des coordonnées XY et du filtrage ; le protocole n'est pas une mesure du « vrai » dénivelé validée sur le terrain.
+
+## Vue du parcours et obstacles
+
+Après le calcul, **Passage sur le parcours** montre la trace vue de dessus, ses flèches, le départ et l'arrivée. Les portions rouges signalent un blocage selon les données OpenStreetMap ; les portions orange demandent une vérification. Chaque obstacle est numéroté, décrit et situé en kilomètres depuis le départ. Cliquer son numéro ou sa ligne centre la vue ; molette, glisser et **Vue complète** permettent de naviguer.
+
+Le choix **À pied / À vélo / Véhicule motorisé** tient compte des autorisations correspondantes. **Sens inverse du GPX** réordonne les obstacles et réévalue les accès directionnels lorsque leur orientation OSM est connue. Les portions colorées couvrent jusqu'à 25 m avant et après l'obstacle, à l'intérieur du même segment GPX. Les clôtures parallèles à la trace sont écartées et les ouvertures cartographiées sont reconnues.
+
+Avec **Internet autorisé**, les coordonnées du couloir de recherche sont envoyées à Overpass. Les réponses OSM sont conservées sept jours, puis actualisées au prochain contrôle en ligne. Hors connexion, le cache reste utilisable avec sa date et un avertissement s'il est ancien. **Actualiser les obstacles** force une nouvelle recherche en ligne. Une panne du service n'efface pas le profil d'altitude et ne produit jamais un résultat « aucun obstacle ». Les données OSM sont comprises dans le cache des tuiles.
+
+La vue schématique fonctionne sans fond de carte. Les informations OSM sont incomplètes : l'absence d'alerte ne garantit pas le passage. Les portails dont l'accès est inconnu, les horaires et conditions non évalués, ainsi que les obstacles ponctuels à plus de 3 m de la trace (8 m maximum), sont indiqués en orange. Les barrières définies uniquement par des relations OSM ne sont pas analysées. La recherche est limitée à 64 requêtes et chaque réponse à 16 Mio ; une analyse incomplète est signalée comme non vérifiée. Données [© contributeurs OpenStreetMap, ODbL](https://www.openstreetmap.org/copyright).
 
 ## Cache et confidentialité
 

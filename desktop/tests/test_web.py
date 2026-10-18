@@ -130,7 +130,7 @@ class WebTests(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as error:
             self.request("/api/clear-cache", {"confirm": True}, {"Sec-Fetch-Site": "cross-site"})
         self.assertEqual(error.exception.code, 403)
-        for route in ("/", "/chart.js", "/style.css", "/app.js", "/web_bridge.js", "/nico579-langue.js",
+        for route in ("/", "/chart.js", "/route.js", "/style.css", "/app.js", "/web_bridge.js", "/nico579-langue.js",
                       "/nico579-maj.js", "/nico579-reglages.js", "/favicon.ico", "/NotoSans.ttf"):
             self.assertTrue(self.request(route))
         self.assertTrue(serveweb.instance_existante("gpx2elev", "127.0.0.1", self.port))
@@ -216,6 +216,7 @@ class WebTests(unittest.TestCase):
 
     def test_js_keeps_detail_extrema_segment_gaps_and_time_boundaries(self):
         subprocess.run(["node", str(Path(__file__).with_name("test_chart.js"))], check=True)
+        subprocess.run(["node", str(Path(__file__).with_name("test_route.js"))], check=True)
 
     def test_packaged_probe_finds_fallback_port_and_ignores_another_process(self):
         calls = []

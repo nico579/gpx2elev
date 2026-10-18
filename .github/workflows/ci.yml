@@ -39,6 +39,7 @@ jobs:
           python -m ruff check desktop/gpx2elev desktop/tools desktop/tests desktop/launcher.py tools
           node --check desktop/gpx2elev/assets/web/app.js
           node --check desktop/gpx2elev/assets/web/chart.js
+          node --check desktop/gpx2elev/assets/web/route.js
           node --check desktop/gpx2elev/assets/web/web_bridge.js
 
   verrous:
@@ -148,6 +149,7 @@ jobs:
         run: |
           python -m playwright install --with-deps chromium
           python tools/check_web_ui.py --output qa/source
+          python tools/check_obstacle_ui.py --output qa/obstacles
           python tools/check_web_ui.py --executable "${{ matrix.binary }}" --output qa/packaged
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()

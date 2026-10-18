@@ -20,7 +20,7 @@ TOLERATED = ("gpx2elev.desktop",)
 # Versions 0.3 and 0.4 updated themselves through this work folder, next to the
 # installation, and never removed it: it keeps the whole previous version.
 LEGACY_PREFIX = ".gpx2elev-update-"
-PAGE = ("index.html", "app.js", "chart.js", "style.css", "web_bridge.js")
+PAGE = ("index.html", "app.js", "chart.js", "route.js", "style.css", "web_bridge.js")
 
 
 def _say(text):

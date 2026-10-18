@@ -60,7 +60,8 @@ private fun distance(value: Double) = String.format(I18n.locale, t("%.2f"), valu
 fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRetry: () -> Unit, onExport: () -> Unit, onClearMessage: () -> Unit,
     cacheSize: CacheSize = CacheSize(), onClearCache: () -> Unit = {},
     updateState: UpdateState = UpdateState(), onUpdates: () -> Unit = {}, onUpdateClose: () -> Unit = {},
-    onUpdateCheck: () -> Unit = {}, onUpdateAction: () -> Unit = {}) {
+    onUpdateCheck: () -> Unit = {}, onUpdateAction: () -> Unit = {},
+    onObstacleRefresh: () -> Unit = {}, onObstacleMode: (com.nico.gpx2elev.core.TravelMode) -> Unit = {}, onObstacleReverse: () -> Unit = {}) {
     var confirmCache by remember { mutableStateOf(false) }
     var showMenu by remember { mutableStateOf(false) }
     MaterialTheme(colorScheme = if (isSystemInDarkTheme()) Dark else Light) {
@@ -114,7 +115,10 @@ fun GpxScreen(state: AppState, onImport: () -> Unit, onCancel: () -> Unit, onRet
                 Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     when {
                         state.busy -> Loading(state)
-                        state.result != null -> ResultCards(state.result, onExport)
+                        state.result != null -> {
+                            ResultCards(state.result, onExport)
+                            ObstacleCard(state.result.prepared, state.obstacles, onObstacleRefresh, onObstacleMode, onObstacleReverse)
+                        }
                         state.error != null -> ErrorCard(state.error, state.fileName, onRetry)
                         else -> Welcome()
                     }
