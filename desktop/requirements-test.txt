@@ -331,6 +331,7 @@ jeepney==0.9.0 ; sys_platform == 'linux' \
     # via
     #   -c requirements-build.txt
     #   -c requirements.txt
+    #   -r requirements.in
     #   nico579-commons
 macholib==1.16.4 ; sys_platform == 'darwin' \
     --hash=sha256:da1a3fa8266e30f0ce7e97c6a54eefaae8edd1e5f86f3eb8b95457cae90265ea \
@@ -338,9 +339,9 @@ macholib==1.16.4 ; sys_platform == 'darwin' \
     # via
     #   -c requirements-build.txt
     #   pyinstaller
-nico579-commons==0.4.16 \
-    --hash=sha256:5a94affc827dc5bd3fcd0096d85cf48313dd05dc7dc97f0b2ec706d477567090 \
-    --hash=sha256:c2a2428af4d49e9348a69bdc848febb4e4c5dc7fdf77b6a126d6e9bec64c4eaf
+nico579-commons==0.5.1 \
+    --hash=sha256:527f2299570c27d4caef192f439a11b11b39a2148636208ef030865529946bbb \
+    --hash=sha256:da7c34227e940b5f8b2c839b5811b2c42516864d83167684e53c6bf8f29fe7c4
     # via
     #   -c requirements-build.txt
     #   -c requirements.txt

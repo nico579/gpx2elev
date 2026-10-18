@@ -1,23 +1,17 @@
-# gpx2elev 0.6.1 : barrières et passages / Barriers and access
+# gpx2elev 0.6.2 : bibliothèque commune 0.5 / Shared library 0.5
 
-Cette version corrige le contrôle de publication Android, qui attendait encore l'ancien nombre de tests. Les 112 tests incluent désormais la vérification des obstacles. Le paquet Python 0.6.0 était déjà disponible ; 0.6.1 réunit les applications Android et ordinateur dans la même release.
+Cette version fait passer gpx2elev à la version 0.5.1 de nico579-commons, la bibliothèque commune déjà utilisée par gpxsolar, lidar2map, blink2video et watch2notif. Le calcul du dénivelé et l'analyse des barrières ne changent pas.
 
-- Android et ordinateur affichent une vue du parcours avec les barrières, clôtures et restrictions d'accès répertoriées dans OpenStreetMap : blocages signalés en rouge, passages à vérifier en orange.
-- Choix du déplacement à pied, à vélo ou en véhicule motorisé. L'inversion du sens du GPX recalcule les restrictions directionnelles, l'ordre des obstacles et les distances depuis le départ.
-- Flèches de progression, zoom, déplacement et liste détaillée des obstacles. Les portions colorées couvrent jusqu'à 25 m de part et d'autre du franchissement, sans relier les segments GPX séparés.
-- Données Overpass mises en cache pendant sept jours avant actualisation, consultables hors connexion avec indication de leur ancienneté. Une vérification indisponible est signalée et conserve le résultat d'altitude.
-- Tests du moteur, du cache et des interfaces, avec contrôles des accès conditionnels, des passages répétés et des restrictions de sens.
-
-Les environs du parcours sont transmis au service Overpass. Les données OSM sont incomplètes et peuvent ne pas refléter l'état actuel d'un portail : l'absence d'alerte ne garantit pas le passage. La vue est schématique, sans fond de carte. Données © contributeurs OpenStreetMap, ODbL.
+- L'assistant de mise à jour garde chaque argument au redémarrage, y compris un argument vide (correctif de nico579-commons 0.5.1).
+- Les restes d'une mise à jour interrompue, à côté de l'installation, sont effacés en tâche de fond au démarrage.
+- Sous Linux, l'icône de la zone de notification parle le protocole StatusNotifierItem par D-Bus (jeepney), comme dans les autres applications : son menu s'ouvre aussi sous Wayland quand le bureau a un hôte (GNOME avec l'extension AppIndicator, KDE).
+- Le moteur publié sur PyPI s'installe désormais à côté des applications qui utilisent nico579-commons 0.5.
 
 ---
 
-This version fixes Android release validation, which still expected the previous test count. The 112 tests now include obstacle checks. Python package 0.6.0 was already available; 0.6.1 brings the Android and desktop applications together in one release.
+This version moves gpx2elev to nico579-commons 0.5.1, the shared library already used by gpxsolar, lidar2map, blink2video and watch2notif. Elevation computation and barrier analysis are unchanged.
 
-- Android and desktop now show a route view with barriers, fences and access restrictions recorded in OpenStreetMap: reported blockages in red and crossings to check in orange.
-- Walking, cycling and motor vehicle modes. Reversing the GPX direction recalculates directional restrictions, encounter order and distance from the start.
-- Direction arrows, zoom, pan and obstacle details. Highlighted sections cover up to 25 m on either side of a crossing and never connect separate GPX segments.
-- Overpass data are cached for seven days before refresh and remain available offline, with their age displayed. Unavailable checks are clearly identified and preserve the elevation result.
-- Engine, cache and interface tests cover conditional access, repeated crossings and directional restrictions.
-
-The route's surrounding area is sent to Overpass. OSM data are incomplete and may not reflect a gate's current state: no alert does not guarantee access. The route view is schematic, without a basemap. Data © OpenStreetMap contributors, ODbL.
+- The update helper keeps every argument when restarting, including an empty one (nico579-commons 0.5.1 fix).
+- Leftovers of an interrupted update next to the installation are removed in the background at startup.
+- On Linux, the notification area icon speaks the StatusNotifierItem protocol over D-Bus (jeepney), like the other applications: its menu also opens under Wayland when the desktop has a host (GNOME with the AppIndicator extension, KDE).
+- The engine published on PyPI can now be installed alongside applications that use nico579-commons 0.5.

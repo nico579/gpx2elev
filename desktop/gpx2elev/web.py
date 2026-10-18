@@ -525,6 +525,9 @@ def serve(args):
         # After an update the open page reloads itself (nico579-maj.js): no second tab.
         app.relaunch = arguments if args.no_browser else [*arguments, "--no-browser"]
         threading.Thread(target=_tidy_legacy_updates, args=(app.stop_event,), daemon=True).start()
+        # Leftovers of an interrupted update next to the installation (helper killed,
+        # power cut): removed in the background, startup is not delayed (nico579-commons 0.5).
+        threading.Thread(target=app.installer.nettoyer_restes, name="menage-maj", daemon=True).start()
 
         if not args.offline:
             app.version_checker.veiller(app.stop_event)

@@ -3,7 +3,13 @@
 # paquet, pour Windows, Linux et macOS à la fois) est généré dans
 # requirements.txt par uv, voir l'en-tête de ce fichier. Même schéma que
 # gpxsolar, lidar2map, blink2video et watch2notif.
-nico579-commons[tray]==0.4.16
+nico579-commons[tray]==0.5.1
+# Linux : l'icône parle le protocole StatusNotifierItem par D-Bus quand le
+# bureau a un hôte (GNOME avec l'extension AppIndicator, KDE), faute de quoi
+# pystray n'ouvre aucun menu sous Wayland. jeepney (Python pur) est le
+# complément Linux de l'extra « tray » de nico579-commons, comme dans les
+# quatre autres applications.
+jeepney==0.9.0; sys_platform == "linux"
 numpy==1.26.4
 Pillow==11.3.0
 requests==2.34.2
