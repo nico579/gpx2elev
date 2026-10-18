@@ -1,4 +1,6 @@
-# gpx2elev 0.6.0 : barrières et passages / Barriers and access
+# gpx2elev 0.6.1 : barrières et passages / Barriers and access
+
+Cette version corrige le contrôle de publication Android, qui attendait encore l'ancien nombre de tests. Les 112 tests incluent désormais la vérification des obstacles. Le paquet Python 0.6.0 était déjà disponible ; 0.6.1 réunit les applications Android et ordinateur dans la même release.
 
 - Android et ordinateur affichent une vue du parcours avec les barrières, clôtures et restrictions d'accès répertoriées dans OpenStreetMap : blocages signalés en rouge, passages à vérifier en orange.
 - Choix du déplacement à pied, à vélo ou en véhicule motorisé. L'inversion du sens du GPX recalcule les restrictions directionnelles, l'ordre des obstacles et les distances depuis le départ.
@@ -9,6 +11,8 @@
 Les environs du parcours sont transmis au service Overpass. Les données OSM sont incomplètes et peuvent ne pas refléter l'état actuel d'un portail : l'absence d'alerte ne garantit pas le passage. La vue est schématique, sans fond de carte. Données © contributeurs OpenStreetMap, ODbL.
 
 ---
+
+This version fixes Android release validation, which still expected the previous test count. The 112 tests now include obstacle checks. Python package 0.6.0 was already available; 0.6.1 brings the Android and desktop applications together in one release.
 
 - Android and desktop now show a route view with barriers, fences and access restrictions recorded in OpenStreetMap: reported blockages in red and crossings to check in orange.
 - Walking, cycling and motor vehicle modes. Reversing the GPX direction recalculates directional restrictions, encounter order and distance from the start.
