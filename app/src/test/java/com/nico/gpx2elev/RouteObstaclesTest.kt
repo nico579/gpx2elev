@@ -132,6 +132,22 @@ class RouteObstaclesTest {
         assertTrue(RouteObstacles.analyze(route, data).events.isEmpty())
         assertEquals(1, RouteObstacles.analyze(route, data.copy(barriers = listOf(gate(80.0)))).blocked)
     }
+    @Test fun onlyAConditionAsSpecificAsTheProhibitionMakesItUncertain() {
+        // Opening hours say when a gate is open, not who may pass; access:conditional is more general than foot=no.
+        for (tags in listOf(mapOf("foot" to "no", "opening_hours" to "24/7"),
+                            mapOf("foot" to "private", "opening_hours" to "Mo-Fr 09:00-17:00"),
+                            mapOf("foot" to "no", "access:conditional" to "yes @ (Mo-Fr)")))
+            assertEquals(tags.toString(), 1, analyze(gate(80.0, tags = tags)).blocked)
+        for (tags in listOf(mapOf("foot" to "no", "foot:conditional" to "no @ (sunset-sunrise)"),
+                            mapOf("access" to "no", "foot:conditional" to "yes @ (Mo-Fr)"),
+                            mapOf("opening_hours" to "Mo-Fr 09:00-17:00")))
+            assertEquals(tags.toString(), 1, analyze(gate(80.0, tags = tags)).uncertain)
+    }
+    @Test fun prohibitionByTheWayIgnoresTheGateOpeningHours() {
+        val road = OsmRoad(listOf(p(0.0), p(80.0), p(200.0)), listOf(7, 1, 9), mapOf("highway" to "path", "foot" to "no"))
+        val data = ObstacleData(listOf(gate(80.0, tags = mapOf("opening_hours" to "24/7"))), listOf(road))
+        assertEquals(1, RouteObstacles.analyze(route, data).blocked)
+    }
     @Test fun matchingRestrictionsSurviveAParentWaySplitAtTheGate() {
         val barrier = gate(80.0, tags = mapOf("bicycle" to "yes"))
         val tags = mapOf("highway" to "cycleway", "oneway" to "yes")

@@ -1,17 +1,19 @@
-# gpx2elev 0.6.2 : bibliothèque commune 0.5 / Shared library 0.5
+# gpx2elev 0.6.3 : interdictions piétonnes et horaires / Pedestrian bans and opening hours
 
-Cette version fait passer gpx2elev à la version 0.5.1 de nico579-commons, la bibliothèque commune déjà utilisée par gpxsolar, lidar2map, blink2video et watch2notif. Le calcul du dénivelé et l'analyse des barrières ne changent pas.
+Cette version corrige un jugement des barrières, sur Android comme sur ordinateur. Un portail interdit aux piétons (`foot=no` ou `foot=private`) qui porte aussi des horaires d'ouverture était classé « à vérifier » : il est désormais bloquant, car les horaires disent quand le portail est ouvert, pas qui a le droit de passer.
 
-- L'assistant de mise à jour garde chaque argument au redémarrage, y compris un argument vide (correctif de nico579-commons 0.5.1).
-- Les restes d'une mise à jour interrompue, à côté de l'installation, sont effacés en tâche de fond au démarrage.
-- Sous Linux, l'icône de la zone de notification parle le protocole StatusNotifierItem par D-Bus (jeepney), comme dans les autres applications : son menu s'ouvre aussi sous Wayland quand le bureau a un hôte (GNOME avec l'extension AppIndicator, KDE).
-- Le moteur publié sur PyPI s'installe désormais à côté des applications qui utilisent nico579-commons 0.5.
+- Une interdiction explicite ne cède plus qu'à une condition au moins aussi précise qu'elle : `foot:conditional` peut lever `foot=no`, mais ni `opening_hours` ni un `access:conditional` général. Une interdiction générale (`access=no`) reste « à vérifier » devant une condition piétonne ou générale.
+- Même règle pour le vélo et les véhicules : `vehicle:conditional` ne lève pas `bicycle=no`.
+- Sur ordinateur, les horaires d'ouverture de la voie elle-même rendent un passage autorisé « à vérifier », comme c'était déjà le cas sur Android.
+
+Constat relevé par l'audit de hike2gpx, qui reprend ces règles.
 
 ---
 
-This version moves gpx2elev to nico579-commons 0.5.1, the shared library already used by gpxsolar, lidar2map, blink2video and watch2notif. Elevation computation and barrier analysis are unchanged.
+This version fixes a barrier decision on both Android and desktop. A gate closed to pedestrians (`foot=no` or `foot=private`) that also carries opening hours was rated "to check": it now blocks, since opening hours say when the gate is open, not who may pass.
 
-- The update helper keeps every argument when restarting, including an empty one (nico579-commons 0.5.1 fix).
-- Leftovers of an interrupted update next to the installation are removed in the background at startup.
-- On Linux, the notification area icon speaks the StatusNotifierItem protocol over D-Bus (jeepney), like the other applications: its menu also opens under Wayland when the desktop has a host (GNOME with the AppIndicator extension, KDE).
-- The engine published on PyPI can now be installed alongside applications that use nico579-commons 0.5.
+- An explicit prohibition only yields to a condition at least as specific: `foot:conditional` may lift `foot=no`, but neither `opening_hours` nor a general `access:conditional` can. A general prohibition (`access=no`) stays "to check" when a pedestrian or general condition applies.
+- Same rule for bicycles and vehicles: `vehicle:conditional` does not lift `bicycle=no`.
+- On desktop, opening hours on the way itself now make an allowed crossing "to check", as Android already did.
+
+Found by the hike2gpx audit, which reuses these rules.

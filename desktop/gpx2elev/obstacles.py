@@ -25,10 +25,13 @@ LABELS = {"fence": "Clôture", "wall": "Mur", "hedge": "Haie", "gate": "Portail"
           "block": "Bloc", "chain": "Chaîne", "entrance": "Passage", "gap": "Ouverture"}
 
 
+# Access keys from the most specific to the most general, for each mode.
+ACCESS_KEYS = {"foot": ("foot", "access"), "bicycle": ("bicycle", "vehicle", "access"),
+               "motor_vehicle": ("motor_vehicle", "vehicle", "access")}
+
+
 def access(tags, mode, direction=None):
-    keys = {"foot": ("foot", "access"), "bicycle": ("bicycle", "vehicle", "access"),
-            "motor_vehicle": ("motor_vehicle", "vehicle", "access")}[mode]
-    for key in keys:
+    for key in ACCESS_KEYS[mode]:
         if direction and f"{key}:{direction}" in tags:
             return tags[f"{key}:{direction}"]
         if key in tags:
@@ -43,20 +46,29 @@ def status(tags, mode, direction=None, parent=None):
         return "blocked", "Entrée condamnée"
     if kind in ("no", "kerb", "flush", "lowered"):
         return "passable", "Passage autorisé"
-    relevant = {"access", mode} | ({"vehicle"} if mode != "foot" else set())
+    keys = ACCESS_KEYS[mode]
     combined = {**(parent or {}), **tags}
+    # The obstacle's own access rules take precedence; the way supplies missing ones.
+    source = tags if access(tags, mode, direction) is not None else (parent or {})
+    value = access(source, mode, direction)
+    rank = next((r for r, key in enumerate(keys) if direction and f"{key}:{direction}" in source or key in source),
+                len(keys))
+    conditions = [keys.index(k.split(":")[0]) for k in combined if k.split(":")[0] in keys and "conditional" in k]
     conditional_direction = {f"oneway:{mode}:conditional"} | ({"oneway:conditional", "oneway:vehicle:conditional"} if mode != "foot" else set())
-    if any(k.split(":")[0] in relevant and "conditional" in k for k in combined) or any(k in combined for k in conditional_direction) or tags.get("opening_hours"):
+    if value in ("no", "private", "use_sidepath"):
+        # An explicit prohibition only yields to a condition on a key at least as specific as the one
+        # that sets it: opening hours or a general access:conditional never lift foot=no.
+        doubtful = any(r <= rank for r in conditions)
+    else:
+        doubtful = bool(conditions) or any(k in combined for k in conditional_direction) or bool(combined.get("opening_hours"))
+    if doubtful:
         return "uncertain", "Accès soumis à des conditions ou horaires"
-    directional = any(k.endswith((":forward", ":backward")) and k.split(":")[0] in relevant for k in combined)
+    directional = any(k.endswith((":forward", ":backward")) and k.split(":")[0] in keys for k in combined)
     oneway = (parent or {}).get(f"oneway:{mode}", (parent or {}).get("oneway") if mode != "foot" else None)
     if direction is None and (directional or oneway in ("yes", "1", "true", "-1")):
         return "uncertain", "Sens de la voie OSM indéterminé"
     if oneway in ("yes", "1", "true") and direction == "backward" or oneway == "-1" and direction == "forward":
         return "blocked", "Passage interdit dans ce sens"
-    value = access(tags, mode, direction)
-    if value is None and parent:
-        value = access(parent, mode, direction)
     if value in ("no", "private", "use_sidepath"):
         return "blocked", "Accès interdit ou privé"
     if tags.get("entrance") in ("exit", "entrance", "emergency"):

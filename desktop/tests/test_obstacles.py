@@ -171,10 +171,38 @@ class PermissionTests(unittest.TestCase):
     def test_unspecified_gate_is_uncertain(self):
         self.assertEqual(obstacles.status({"barrier": "gate"}, "foot")[0], "uncertain")
 
-    def test_conditional_and_opening_hours_are_uncertain(self):
-        for extra in ({"foot:conditional": "no @ (sunset-sunrise)"}, {"opening_hours": "Mo-Fr 09:00-17:00"}):
-            with self.subTest(extra=extra):
-                self.assertEqual(obstacles.status({"barrier": "gate", "foot": "no", **extra}, "foot")[0], "uncertain")
+    def test_only_a_condition_as_specific_as_the_prohibition_makes_it_uncertain(self):
+        # Opening hours say when a gate is open, not who may pass; access:conditional is more
+        # general than foot=no. A condition on foot itself, or a prohibition by access, stays open.
+        cases = {"uncertain": ({"foot": "no", "foot:conditional": "no @ (sunset-sunrise)"},
+                               {"access": "no", "foot:conditional": "yes @ (Mo-Fr)"},
+                               {"access": "no", "access:conditional": "yes @ (Mo-Fr)"},
+                               {"opening_hours": "Mo-Fr 09:00-17:00"}),
+                 "blocked": ({"foot": "no", "opening_hours": "Mo-Fr 09:00-17:00"},
+                             {"foot": "no", "opening_hours": "24/7"},
+                             {"foot": "private", "opening_hours": "Mo-Fr 09:00-17:00"},
+                             {"foot": "no", "access:conditional": "yes @ (Mo-Fr)"})}
+        for expected, extras in cases.items():
+            for extra in extras:
+                with self.subTest(extra=extra):
+                    self.assertEqual(obstacles.status({"barrier": "gate", **extra}, "foot")[0], expected)
+
+    def test_prohibition_by_the_way_ignores_the_gate_opening_hours(self):
+        parent = {"highway": "path", "foot": "no"}
+        self.assertEqual(obstacles.status({"barrier": "gate", "opening_hours": "24/7"}, "foot", parent=parent)[0],
+                         "blocked")
+
+    def test_way_opening_hours_make_an_open_gate_uncertain(self):
+        # As in the Android engine, the way's own opening hours condition access too.
+        parent = {"highway": "footway", "opening_hours": "Mo-Su 08:00-20:00"}
+        self.assertEqual(obstacles.status({"barrier": "gate", "access": "yes"}, "foot", parent=parent)[0],
+                         "uncertain")
+
+    def test_vehicle_condition_does_not_lift_a_bicycle_prohibition(self):
+        self.assertEqual(obstacles.status({"barrier": "gate", "bicycle": "no", "vehicle:conditional": "yes @ (Sa)"},
+                                          "bicycle")[0], "blocked")
+        self.assertEqual(obstacles.status({"barrier": "gate", "vehicle": "no", "bicycle:conditional": "yes @ (Sa)"},
+                                          "bicycle")[0], "uncertain")
 
     def test_barrier_effect_depends_on_transport_mode(self):
         tags = {"barrier": "bollard"}

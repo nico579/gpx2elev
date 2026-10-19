@@ -57,11 +57,21 @@ object RouteObstacles {
             TravelMode.MOTOR_VEHICLE -> listOf("motor_vehicle", "vehicle", "access")
         }
         val combined = parent + tags
-        if (combined.containsKey("opening_hours") || combined.keys.any { it.substringBefore(':') in keys && it.endsWith(":conditional") })
-            return ObstacleLevel.UNCERTAIN to "Accès conditionnel : vérifier les conditions sur place."
-        if (combined.containsKey("oneway:" + mode.tag + ":conditional") ||
-            (mode != TravelMode.FOOT && (combined.containsKey("oneway:conditional") || combined.containsKey("oneway:vehicle:conditional"))))
-            return ObstacleLevel.UNCERTAIN to "Accès conditionnel : vérifier les conditions sur place."
+        // The obstacle's own access rules take precedence; roads supply missing rules.
+        fun access(source: Map<String, String>) = keys.firstNotNullOfOrNull { key -> direction?.let { source[key + ":" + it] } ?: source[key] }
+        val source = if (access(tags) != null) tags else parent
+        val value = access(source)
+        val forbidden = value in setOf("no", "private", "use_sidepath")
+        val rank = keys.indexOfFirst { key -> (direction != null && source.containsKey(key + ":" + direction)) || source.containsKey(key) }
+            .let { if (it < 0) keys.size else it }
+        val conditions = combined.keys.filter { it.substringBefore(':') in keys && it.endsWith(":conditional") }
+            .map { keys.indexOf(it.substringBefore(':')) }
+        // An explicit prohibition only yields to a condition on a key at least as specific as the one that sets it:
+        // opening hours or a general access:conditional never lift foot=no.
+        val doubtful = if (forbidden) conditions.any { it <= rank } else conditions.isNotEmpty() ||
+            combined.containsKey("opening_hours") || combined.containsKey("oneway:" + mode.tag + ":conditional") ||
+            (mode != TravelMode.FOOT && (combined.containsKey("oneway:conditional") || combined.containsKey("oneway:vehicle:conditional")))
+        if (doubtful) return ObstacleLevel.UNCERTAIN to "Accès conditionnel : vérifier les conditions sur place."
         if (direction == null && combined.keys.any { it.substringBefore(':') in keys && (it.endsWith(":forward") || it.endsWith(":backward")) })
             return ObstacleLevel.UNCERTAIN to "Restriction selon le sens ; orientation OSM indéterminée."
         val oneway = combined["oneway:" + mode.tag] ?: if (mode != TravelMode.FOOT) combined["oneway"] else null
@@ -70,10 +80,7 @@ object RouteObstacles {
             if ((oneway == "-1" && direction == "forward") || (oneway != "-1" && direction == "backward"))
                 return ObstacleLevel.BLOCKED to "Sens interdit pour ce mode de déplacement selon OpenStreetMap."
         }
-        // The obstacle's own access rules take precedence; roads supply missing rules.
-        fun access(source: Map<String, String>) = keys.firstNotNullOfOrNull { key -> direction?.let { source[key + ":" + it] } ?: source[key] }
-        val value = access(tags) ?: access(parent)
-        if (value in setOf("no", "private", "use_sidepath")) return ObstacleLevel.BLOCKED to ("Accès " + value + " pour " + mode.label.lowercase() + " dans ce sens.")
+        if (forbidden) return ObstacleLevel.BLOCKED to ("Accès " + value + " pour " + mode.label.lowercase() + " dans ce sens.")
         if (kind == "entrance" && tags["entrance"] in setOf("emergency", "exit", "entrance"))
             return ObstacleLevel.UNCERTAIN to "Ouverture réservée ou à sens limité : vérifier le passage."
         if (tags["locked"] == "yes") return if (mode != TravelMode.MOTOR_VEHICLE && value in allowed)
