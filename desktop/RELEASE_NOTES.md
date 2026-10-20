@@ -1,19 +1,13 @@
-# gpx2elev 0.6.3 : interdictions piétonnes et horaires / Pedestrian bans and opening hours
+# gpx2elev 0.6.4 : bibliothèque commune 0.6 / Shared library 0.6
 
-Cette version corrige un jugement des barrières, sur Android comme sur ordinateur. Un portail interdit aux piétons (`foot=no` ou `foot=private`) qui porte aussi des horaires d'ouverture était classé « à vérifier » : il est désormais bloquant, car les horaires disent quand le portail est ouvert, pas qui a le droit de passer.
+Cette version ne change rien à l'usage, sur Android comme sur ordinateur. Elle accepte nico579-commons 0.6, la bibliothèque commune des applications de bureau, qui apporte un module grâce auquel les processus enfants meurent avec leur application, même quand celle-ci est tuée ou que sa console est fermée. hike2gpx, qui s'appuie sur le moteur de gpx2elev, en a besoin pour ne plus laisser de moteur BRouter orphelin derrière lui.
 
-- Une interdiction explicite ne cède plus qu'à une condition au moins aussi précise qu'elle : `foot:conditional` peut lever `foot=no`, mais ni `opening_hours` ni un `access:conditional` général. Une interdiction générale (`access=no`) reste « à vérifier » devant une condition piétonne ou générale.
-- Même règle pour le vélo et les véhicules : `vehicle:conditional` ne lève pas `bicycle=no`.
-- Sur ordinateur, les horaires d'ouverture de la voie elle-même rendent un passage autorisé « à vérifier », comme c'était déjà le cas sur Android.
-
-Constat relevé par l'audit de hike2gpx, qui reprend ces règles.
+- Le moteur publié sur PyPI accepte nico579-commons de 0.5.1 à 0.6.x (`>=0.5.1,<0.7`).
+- Les verrous de l'application de bureau passent à nico579-commons 0.6.0 ; aucune autre dépendance ne bouge.
 
 ---
 
-This version fixes a barrier decision on both Android and desktop. A gate closed to pedestrians (`foot=no` or `foot=private`) that also carries opening hours was rated "to check": it now blocks, since opening hours say when the gate is open, not who may pass.
+This version changes nothing in use, on Android or desktop. It accepts nico579-commons 0.6, the library shared by the desktop applications, which adds a module that makes child processes die with their application, even when it is killed or its console is closed. hike2gpx, which builds on the gpx2elev engine, needs it so as to stop leaving orphan BRouter engines behind.
 
-- An explicit prohibition only yields to a condition at least as specific: `foot:conditional` may lift `foot=no`, but neither `opening_hours` nor a general `access:conditional` can. A general prohibition (`access=no`) stays "to check" when a pedestrian or general condition applies.
-- Same rule for bicycles and vehicles: `vehicle:conditional` does not lift `bicycle=no`.
-- On desktop, opening hours on the way itself now make an allowed crossing "to check", as Android already did.
-
-Found by the hike2gpx audit, which reuses these rules.
+- The engine published on PyPI accepts nico579-commons 0.5.1 to 0.6.x (`>=0.5.1,<0.7`).
+- The desktop application's locks move to nico579-commons 0.6.0; no other dependency changes.

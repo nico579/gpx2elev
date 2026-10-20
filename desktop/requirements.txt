@@ -219,9 +219,9 @@ jeepney==0.9.0 ; sys_platform == 'linux' \
     # via
     #   -r requirements.in
     #   nico579-commons
-nico579-commons==0.5.1 \
-    --hash=sha256:527f2299570c27d4caef192f439a11b11b39a2148636208ef030865529946bbb \
-    --hash=sha256:da7c34227e940b5f8b2c839b5811b2c42516864d83167684e53c6bf8f29fe7c4
+nico579-commons==0.6.0 \
+    --hash=sha256:9553c19fc415be1a4388b2ef024e2fda072b4abf9f58cdfb65a78f5415ea4ecb \
+    --hash=sha256:b5bf96416928c953b03de4ef2476fbc1513d34b7547c29f2a498f6279ede8951
     # via -r requirements.in
 numpy==1.26.4 \
     --hash=sha256:03a8c78d01d9781b28a6989f6fa1bb2c4f2d51201cf99d3dd875df6fbd96b23b \
