@@ -18,12 +18,14 @@ dependencies = [
     "requests>=2.34",
     "rasterio>=1.4",
     "defusedxml>=0.7.1",
-    "nico579-commons>=0.5.1,<0.7",
+    # Commun jusqu'à la 1.0 (décision du 2026-09-29) : une version mineure du
+    # commun n'oblige plus hike2gpx à attendre une release de gpx2elev.
+    "nico579-commons>=0.5.1,<1",
 ]
 
 [project.optional-dependencies]
 # Le serveur web et son systray : pip install "gpx2elev[gui]".
-gui = ["nico579-commons[tray]>=0.5.1,<0.7"]
+gui = ["nico579-commons[tray]>=0.5.1,<1"]
 
 [project.urls]
 Source = "https://github.com/nico579/gpx2elev"
