@@ -55,9 +55,9 @@ jobs:
           python-version: "3.12"
       - run: python -m pip install uv==0.9.28
       # Chaque version figée doit exister en paquet binaire sur les quatre machines
-      # de Release, sans compilation surprise. macOS 14 : la cible minimale gardée
-      # depuis que macos-14 est retiré (2 novembre 2026), construit sur macos-15,
-      # en dessous de laquelle rasterio n'a pas de paquet pour Apple Silicon.
+      # de Release, sans compilation surprise. macOS 14 reste la cible minimale,
+      # en dessous de laquelle rasterio n'a pas de paquet pour Apple Silicon,
+      # même si l'image macos-14, retirée le 2 novembre 2026, cède la place à macos-15.
       - name: Roues pour les quatre systèmes de construction
         working-directory: desktop
         env:
