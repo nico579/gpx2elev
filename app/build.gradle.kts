@@ -9,7 +9,7 @@ android {
         applicationId = "com.nico.gpx2elev"
         minSdk = 26
         targetSdk = 34
-        versionCode = 20
+        versionCode = 21
         versionName = rootProject.file("VERSION").readText().trim()
     }
     signingConfigs.getByName("debug") {
